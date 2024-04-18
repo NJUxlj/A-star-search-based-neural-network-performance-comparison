@@ -4,15 +4,19 @@ import torch
 import numpy as np
 import pandas as pd
 
-# sklearn 相关的包
+# sklearn related packages
 from sklearn.utils import shuffle
 # 导入标签编码器
 from sklearn.preprocessing import LabelEncoder
+# 导入混淆矩阵
+from sklearn.metrics import confusion_matrix,classification_report
+
+from sklearn.metrics import roc_curve, auc
 
 import matplotlib.pyplot as plt
 
 
-# 自定义一个神经网络类
+# self-defined neural network class
 class TorchModel(nn.Module):
     def __init__(self, input_size: int):
         ''''
@@ -122,6 +126,30 @@ def build_dataset()->pd.DataFrame:
     
     # print(Y_train)
     
+    
+    # 使用饼图展示原始数据分布
+    temp = train["Activity"].value_counts()
+    df = pd.DataFrame({'labels': temp.index,
+                    'values': temp.values
+                    })
+
+    labels = df['labels']
+    sizes = df['values']
+    colors = ['yellowgreen', 'gold', 'lightskyblue', 'lightcoral','cyan','lightpink']
+    plt.pie(sizes, colors=colors, shadow=True, startangle=90, labeldistance=1.2, autopct='%1.1f%%')
+    plt.legend(labels, loc="best", ncol=2)
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.show()
+    
+    
+    print(f"X_train.shape：{X_train.shape}")
+    print(f"Y_train.shape：{Y_train.shape}")
+    print(f"X_test.shape：{X_test.shape}")
+    print(f"Y_test.shape：{Y_test.shape}")
+    print('--------------------------------')
+    print(f"Number of feature = {X_train.shape[1]}")
+    
     return  X_train, Y_train, X_test, Y_test
 
 
@@ -131,11 +159,11 @@ def predict():
 
 
 # 测试每轮(epoch)模型的准确率
-def evaluate(model:TorchModel):
+def evaluate(model:TorchModel, test_x, test_y):
     model.eval()
     
     # 导入测试集
-    _, _, test_x, test_y = build_dataset()
+    # _, _, test_x, test_y = build_dataset()
     
     test_sample_size=len(test_x)
     correct, wrong = 0, 0 # 预测正确的个数， 预测错误的个数
@@ -162,6 +190,18 @@ def softmax():
     自定义的softmax实现, 有空再说
     '''
     pass
+
+def one_hot_to_single(y_pred):
+    '''
+    将one-hot编码转为单个分类值
+    '''
+    
+    y_pred_label=[]
+    
+    for x in y_pred:
+        y_pred_label.append(torch.argmax(x).item())
+    
+    return y_pred_label
 
 
 
@@ -218,7 +258,7 @@ def main():
             watch_loss.append(loss.item())   
         
         print(f'epoch #{epoch+1}, average loss = {np.mean(watch_loss):.2f}')
-        acc=evaluate(model)
+        acc=evaluate(model, test_x, test_y)
         log.append([acc,np.mean(watch_loss)])
     
     # 保存模型到本地文件
@@ -232,11 +272,37 @@ def main():
     # 这里后面我会加其他的性能指标
     plt.legend()
     plt.show()
+    
+    # 显示分类完成后，模型的分类性能
+    test_y_pred = model(test_x)
+    test_y_pred_label = one_hot_to_single(test_y_pred)
+    print(f"test_y_pred_label = {test_y_pred_label}")
+    
+    print("\n=========== confusion matrix ==============")
+    print(confusion_matrix(test_y,test_y_pred_label))
+    
+    
+    print("\n=========== classification report ==============")
+    print(classification_report(test_y,test_y_pred_label))
+    
+    
+    print("\n=========== ROC ==============")
+
+    
+    
+    
+    print("\n=========== AUC ==============")
+    
+    
+    
+    print("\n============= 10-fold cross validation============")
+    
+    
     return  
     
 
 
 if __name__ == '__main__':
-    build_dataset()
+    # build_dataset()
     main()
     
