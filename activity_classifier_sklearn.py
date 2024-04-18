@@ -11,5 +11,21 @@ from sklearn.model_selection import cross_val_score, GridSearchCV
 
 
 
+class SVMModel:
+    def __init__(self):
+        self.kernel=None
+        self.state = None 
+    
+    
+    
+    def set_kernel(self, kernel):
+        self.kernel = kernel
+    
+    def set_state(self, state):
+        self.state = state
+        
+    
+    def forward(self, x, y= None):
+        pass
 
 
