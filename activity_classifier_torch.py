@@ -191,6 +191,31 @@ def softmax():
     '''
     pass
 
+# def one_hot(y_pred):
+#     '''
+#     将概率分布矩阵转为0-1的二值矩阵
+#     '''
+#     one_hot = torch.zeros_like(y_pred)
+    
+#     i=0
+#     for row in y_pred:
+#         one_index = torch.argmax(row).item()
+#         one_hot[i, one_index] =1
+#         i+=1
+        
+#     return one_hot
+
+
+def one_hot(y_pred:torch.Tensor):
+    '''
+    将一列标签向量 转为0-1的二值矩阵
+    '''
+    y_pred=y_pred.long()
+    num_classes = (torch.max(y_pred) + 1).item()
+    one_hot = torch.zeros((y_pred.shape[0], int(num_classes)))
+    one_hot.scatter_(1, y_pred.unsqueeze(1), 1)
+    return one_hot
+
 def one_hot_to_single(y_pred):
     '''
     将one-hot编码转为单个分类值
@@ -203,6 +228,76 @@ def one_hot_to_single(y_pred):
     
     return y_pred_label
 
+def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
+    '''
+    test_y: 测试集的标签向量
+    test_y_pred: 测试集的标签对应的概率分布矩阵：shape(n, 6)
+    
+    一对多策略的含义
+    它是一种多分类问题中常用的方法，它将多分类问题分解为多个二分类问题来解决。
+    具体来说，对于一个拥有 N 个类别的多分类问题，一对多策略会为每个类别创建一个二分类模型，
+    每个模型都将该类别视为正类，将其他所有类别视为负类。
+    这样，我们可以得到 N 个二分类模型，每个模型都能够区分一个特定的类别与其他所有类别。
+    
+    根据这种策略， 我们就可以画出N个ROC图像
+    
+    '''
+    
+    import warnings
+    from sklearn.exceptions import UndefinedMetricWarning
+
+    # 忽略 UndefinedMetricWarning
+    warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
+
+    # 准备画布
+    plt.figure(figsize=(10, 8))
+    
+    from sklearn.preprocessing import label_binarize
+    # 将 test_y_bin 中的类标签转化为二值化标签
+    # test_y_bin = label_binarize(test_y, classes=[0, 1, 2, 3, 4, 5])
+    test_y_bin=one_hot(test_y)
+    
+    
+
+    # 为每个类别绘制ROC曲线
+    for i in range(test_y_pred.shape[1]):
+        # test_y_pred[:, i] 是一个一维数组，表示模型预测每个样本属于第 i 类的概率。
+        # pos_label 参数在 roc_curve 函数中用于定义哪个类别被视为正类。
+        # 将 test_y_bin[:, i], test_y_pred[:, i] 结合起来可以计算 TPR 和 FPR
+        y = test_y_bin[:, i]
+        y_prob = test_y_pred[:, i].detach().numpy()
+        
+        print(f'y = \n {y}')
+        print(f'y_prob = \n {y_prob}')
+        
+        
+        fpr, tpr, thresholds = roc_curve(y, y_prob, pos_label=i)
+        # 计算auc的值
+        roc_auc = auc(fpr, tpr)
+        # lw: linewidth
+        plt.plot(fpr, tpr, lw = 2, label = 'ROC curve of class %d, AUC = %0.2f'%(i, roc_auc))
+
+    # 添加对角线
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+
+    # 设置图的其他属性
+    # 将 x 轴的显示范围设置为从 0.0 到 1.0
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('RUC for multi-class')
+    plt.legend(loc="lower right")
+    plt.show()
+    
+    
+def get_auc():
+    pass
+
+
+def k_fold_cross_validation():
+    pass 
 
 
 # 执行训练任务
@@ -246,8 +341,9 @@ def main():
             # y_batch:torch.Tensor = torch.tensor(y_batch.values)
             # 隐式调用forward成员函数， 计算损失
             
-            print(f'y_batch:\n{y_batch}')
-            print(len(y_batch))
+            # print(f'y_batch:\n{y_batch}')
+            # print(len(y_batch))
+            
             loss = model(x_batch, y_batch)
             
             loss.backward()  # 计算梯度
@@ -275,8 +371,10 @@ def main():
     
     # 显示分类完成后，模型的分类性能
     test_y_pred = model(test_x)
+    print(f'test_y_pred:\n {test_y_pred}')
+    
     test_y_pred_label = one_hot_to_single(test_y_pred)
-    print(f"test_y_pred_label = {test_y_pred_label}")
+    # print(f"test_y_pred_label = {test_y_pred_label}")
     
     print("\n=========== confusion matrix ==============")
     print(confusion_matrix(test_y,test_y_pred_label))
@@ -287,16 +385,16 @@ def main():
     
     
     print("\n=========== ROC ==============")
-
     
+    get_roc(test_y=test_y, test_y_pred=test_y_pred)
     
     
     print("\n=========== AUC ==============")
     
     
     
-    print("\n============= 10-fold cross validation============")
-    
+    print("\n============= 10-fold cross validation ============")
+
     
     return  
     
