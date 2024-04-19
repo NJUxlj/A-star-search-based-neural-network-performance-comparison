@@ -264,7 +264,7 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     import warnings
     from sklearn.exceptions import UndefinedMetricWarning
 
-    # 忽略 UndefinedMetricWarning
+    # 忽略 UndefinedMetricWarning, 用于忽略控制台的警告信息
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
 
@@ -272,28 +272,17 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     plt.figure(figsize=(10, 8))
     
     from sklearn.preprocessing import label_binarize
-    # 将 test_y_bin 中的类标签转化为二值化标签
-    # test_y_bin = label_binarize(test_y, classes=[0, 1, 2, 3, 4, 5])
-    # test_y_bin=one_hot(test_y)
-    
+
 
     # 为每个类别绘制ROC曲线
     for i in range(test_y_pred.shape[1]):
         # test_y_pred[:, i] 是一个一维数组，表示模型预测每个样本属于第 i 类的概率。
         # pos_label 参数在 roc_curve 函数中用于定义哪个类别被视为正类。
         # 将 test_y_bin[:, i], test_y_pred[:, i] 结合起来可以计算 TPR 和 FPR
-        # y = test_y_bin[:, i].detach().numpy()
         y=test_y.detach().numpy()
         y_prob = test_y_pred
         y_prob = y_prob[:, i].detach().numpy()
         
-        # 概率分布举证转为0-1矩阵
-        # y_prob: torch.Tensor = prob_to_one_hot(test_y_pred)
-        
-        
-        # print(f'y_prob = \n{y_prob}')
-        
-        # print(f'y = \n {y}')
 
         
         
@@ -316,14 +305,74 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     plt.legend(loc="lower right")
     plt.show()
     
+
+
+def k_fold_cross_validation(k):
+    '''
+    我们将训练集分为K折，其中K-1份组成训练集，剩下一份是测试集，轮流跑K次，最后取平均测试结果
+    '''
+    input_size = 561  # 输入向量维度
+    learning_rate = 0.001  # 学习率  
     
-def get_auc():
-    pass
+    model = TorchModel(input_size=input_size)
+    
+    # 创建优化器
+    optim = torch.optim.Adam(params = model.parameters(), lr=learning_rate)
+    
+    dataset:list[list] = shuffle(pd.read_csv('./train.csv'))
+    
+    dataset: pd.DataFrame = pd.DataFrame(dataset)
+    
+    # 分离特征和标签， 以及类别映射
+    X_dataset = pd.DataFrame(dataset.drop(['Activity','subject'], axis=1))
+    X_dataset = torch.tensor(X_dataset.values, dtype = torch.float32)
+    
+    Y_dataset_label = dataset.Activity.values.astype(object)
+    labelEncoder = LabelEncoder()
+    Y_dataset: np.ndarray =labelEncoder.fit_transform(Y_dataset_label)
+    Y_dataset = torch.tensor(Y_dataset, dtype = torch.long)
+    
+    
+    # dataset=np.array(dataset)
+    
+    # print(dataset)
+    dataset_len = len(dataset)
+    fold_size = dataset_len // k
+    
+    # 记录每一轮，测试集上的损失
+    watch_loss= []
+    
+    for i in range(k): # k轮交叉验证
+        X_test = X_dataset[i*(fold_size):(i+1)*fold_size]
+        Y_test = Y_dataset[i*(fold_size):(i+1)*fold_size]
+        
+        X_train = X_dataset[(i+1)*fold_size:]
+        Y_train = Y_dataset[(i+1)*fold_size:]
+    
+        model.train()
+        loss = model(X_train, Y_train)
+        loss.backward()  # 计算梯度
+        optim.step() # 更新参数
+        model.zero_grad() # 梯度归零， 每一个批次只能用该批次的损失函数来计算梯度
+        
+        # 测试集的误差
+        loss_test = model(X_test, Y_test)
+        watch_loss.append(loss_test.item())   
+        
+        print(f'{k}-fold round # {i+1}, loss = {loss_test.item():.2f}')
+        # acc=evaluate(model, test_x, test_y)
+        # log.append([acc,np.mean(watch_loss)])
 
+    print(f'{k}-fold CV\'s average loss = {np.mean(watch_loss):.2f}')
+    
+    # 绘制损失的历史数据
+    plt.plot(watch_loss)
+    plt.title('Loss history')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
 
-def k_fold_cross_validation():
-    pass 
-
+    
 
 # 执行训练任务
 def main():
@@ -389,8 +438,6 @@ def main():
     print(log)
     plt.plot(range(len(log)), [x[0] for x in log], label = 'accuracy')
     plt.plot(range(len(log)),[x[1] for x in log], label = 'loss')
-    
-    # 这里后面我会加其他的性能指标
     plt.legend()
     plt.show()
     
@@ -416,7 +463,7 @@ def main():
 
     
     print("\n============= 10-fold cross validation ============")
-
+    k_fold_cross_validation(50)
     
     return  
     
@@ -425,4 +472,5 @@ def main():
 if __name__ == '__main__':
     # build_dataset()
     main()
+    # k_fold_cross_validation(50)
     
