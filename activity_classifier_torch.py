@@ -274,8 +274,7 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     from sklearn.preprocessing import label_binarize
     # 将 test_y_bin 中的类标签转化为二值化标签
     # test_y_bin = label_binarize(test_y, classes=[0, 1, 2, 3, 4, 5])
-    test_y_bin=one_hot(test_y)
-    
+    # test_y_bin=one_hot(test_y)
     
 
     # 为每个类别绘制ROC曲线
@@ -283,16 +282,19 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
         # test_y_pred[:, i] 是一个一维数组，表示模型预测每个样本属于第 i 类的概率。
         # pos_label 参数在 roc_curve 函数中用于定义哪个类别被视为正类。
         # 将 test_y_bin[:, i], test_y_pred[:, i] 结合起来可以计算 TPR 和 FPR
-        y = test_y_bin[:, i]
-        # 概率分布举证转为0-1矩阵
-        y_prob: torch.Tensor = prob_to_one_hot(test_y_pred)
-        
-        print(f'y_prob = \n{y_prob}')
+        # y = test_y_bin[:, i].detach().numpy()
+        y=test_y.detach().numpy()
+        y_prob = test_y_pred
         y_prob = y_prob[:, i].detach().numpy()
         
+        # 概率分布举证转为0-1矩阵
+        # y_prob: torch.Tensor = prob_to_one_hot(test_y_pred)
         
-        print(f'y = \n {y}')
-        print(f'y_prob = \n {y_prob}')
+        
+        # print(f'y_prob = \n{y_prob}')
+        
+        # print(f'y = \n {y}')
+
         
         
         fpr, tpr, thresholds = roc_curve(y, y_prob, pos_label=i)
@@ -411,10 +413,7 @@ def main():
     
     get_roc(test_y=test_y, test_y_pred=test_y_pred)
     
-    
-    print("\n=========== AUC ==============")
-    
-    
+
     
     print("\n============= 10-fold cross validation ============")
 

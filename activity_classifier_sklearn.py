@@ -29,3 +29,8 @@ class SVMModel:
         pass
 
 
+
+
+def build_dataset_svm():
+    train = shuffle()
+
