@@ -216,6 +216,24 @@ def one_hot(y_pred:torch.Tensor):
     one_hot.scatter_(1, y_pred.unsqueeze(1), 1)
     return one_hot
 
+
+def prob_to_one_hot(y_prob:torch.Tensor)-> torch.Tensor:
+    '''
+    
+    将一个概率矩阵（类概率分布矩阵），转为0-1二值矩阵
+
+    
+    '''
+    max_indexed = torch.argmax(y_prob, dim=1)
+    one_hot = torch.zeros_like(y_prob)
+    
+    for i, j in enumerate(max_indexed):
+        one_hot[i,j]=1
+        
+    return one_hot
+    
+
+
 def one_hot_to_single(y_pred):
     '''
     将one-hot编码转为单个分类值
@@ -266,7 +284,12 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
         # pos_label 参数在 roc_curve 函数中用于定义哪个类别被视为正类。
         # 将 test_y_bin[:, i], test_y_pred[:, i] 结合起来可以计算 TPR 和 FPR
         y = test_y_bin[:, i]
-        y_prob = test_y_pred[:, i].detach().numpy()
+        # 概率分布举证转为0-1矩阵
+        y_prob: torch.Tensor = prob_to_one_hot(test_y_pred)
+        
+        print(f'y_prob = \n{y_prob}')
+        y_prob = y_prob[:, i].detach().numpy()
+        
         
         print(f'y = \n {y}')
         print(f'y_prob = \n {y_prob}')
@@ -303,7 +326,7 @@ def k_fold_cross_validation():
 # 执行训练任务
 def main():
     # 配置参数
-    epoch_num = 10  # 训练轮数
+    epoch_num = 5  # 训练轮数
     batch_size = 20  # 每次训练样本个数
     train_sample = 5000  # 每轮训练总共训练的样本总数
     input_size = 561  # 输入向量维度
