@@ -13,6 +13,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score, GridSearchCV
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_curve, auc
 
 import torch
 
@@ -44,7 +45,7 @@ class SVMModel:
         # build a primary SVM model
         # SVC: SVM classifier
         # cv: number of folds in cross-validation
-        self.model = GridSearchCV(SVC(),self.kernel, cv = 5)
+        self.model = GridSearchCV(SVC(probability=True),self.kernel, cv = 5)
     
     
     
@@ -90,7 +91,7 @@ class SVMModel:
         
     def evaluate(self, X_train_scaled, Y_train):
         
-        print(" =======  It needs about 2 minutes, Please be patient ~~~ =====================")
+        print(" =======  It needs about 5 minutes, Please be patient ~~~ =====================")
         self.__fit(X_train_scaled, Y_train)
         print(f'Best score for training data:{self.model.best_score_}') 
 
@@ -98,6 +99,8 @@ class SVMModel:
         print(f'Best Kernel: {self.model.best_estimator_.kernel}')
         print(f'Best Gamma: {self.model.best_estimator_.gamma}')
         
+        final_model = self.model.best_estimator_
+        return final_model
 
 
 
@@ -145,9 +148,11 @@ def build_dataset()->pd.DataFrame:
     Y_train = encoder.transform(Y_train_label)
     
     encoder.fit(Y_test_label)
+    # get am array that each ele is a class-mapping-number [0-5]
     Y_test = encoder.transform(Y_test_label)
 
-
+    # 里面存了针对Y_test_label的编码器
+    final_encoder = encoder
     print(f'Dimension of the train set: {X_train.shape}')
     print(f'Dimension of the test set: {X_test.shape}')
     print(f'Number of features = {X_train.shape[1]}')
@@ -166,10 +171,43 @@ def build_dataset()->pd.DataFrame:
     
 
     
-    return  X_train_scaled, Y_train, X_test_scaled, Y_test
+    return  X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, final_encoder
 
 
 
+
+def get_roc(test_y: np.ndarray, test_y_scores:np.ndarray):
+    # Compute ROC curve and ROC area for each class
+
+    import warnings
+    from sklearn.exceptions import UndefinedMetricWarning
+
+    # 忽略 UndefinedMetricWarning, 用于忽略控制台的警告信息
+    warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
+
+    # 准备画布
+    plt.figure(figsize=(10, 8))
+
+    for i in range(test_y_scores.shape[1]):
+        y=test_y
+        y_prob =test_y_scores[:,i]
+        fpr, tpr, _ = roc_curve(y, y_prob, pos_label=i)  # one-to-M policy for binary classification, and you're interested in class i
+
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, lw=2, label='ROC curve of class %d, AUC = %0.2f' % (i, roc_auc))
+        
+    # Plot diagnal
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    
+    
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC curve')
+    plt.legend(loc="lower right")
+    plt.show()
 
 
 
@@ -179,16 +217,49 @@ def main():
     展示模型指标
     '''
 
-    X_train_scaled, Y_train, X_test_scaled, Y_test = build_dataset()
+    X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, encoder = build_dataset()
+    
+    encoder: LabelEncoder
+    Y_test=np.array(Y_test)
     
     svm= SVMModel()
-    svm.evaluate(X_train_scaled,Y_train)
+    final_model:SVC = svm.evaluate(X_train_scaled,Y_train)
+    
+    # Y_pred:np.ndarray = final_model.predict(X_test_scaled)
+    
+    # get class probability scores
+    Y_pred_prob:np.ndarray = final_model.predict_proba(X_test_scaled)
+    
+    print(f'Y_pred_prob.shape = {Y_pred_prob.shape}')
+    Y_pred=np.argmax(Y_pred_prob, axis=1)
 
+    
+    
+    # 0-5 的integer classes transfer to string classes
+    Y_pred_label = list(encoder.inverse_transform(Y_pred))
 
+    # 混淆矩阵
+    print(confusion_matrix(Y_test_label, Y_pred_label))
+    
+    print('\n\n')
+    
+    # 展示分类准确度指标报告
+    print(classification_report(Y_test_label, Y_pred_label))
+    
+    print("Training set score for SVM: %f" % final_model.score(X_train_scaled , Y_train))
+    print("Testing  set score for SVM: %f" % final_model.score(X_test_scaled  , Y_test ))
+    
+    
+    
+    print(" ====================== ROC =============================")
+    
+    get_roc(Y_test, Y_pred_prob)
+    
+    return final_model
 
 def print_svm():
-    main()
-
+    final_model = main()
+    return final_model
 
 
 

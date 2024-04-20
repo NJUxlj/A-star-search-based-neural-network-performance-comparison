@@ -172,8 +172,8 @@ def evaluate(model:TorchModel, test_x, test_y):
         # 预测值是一个one-hot的0-1向量，1所在的位置代表真实类别
         test_y_pred: torch.Tensor= model(test_x)
         
-        print('test_y_pred:\n {test_y_pred}')
-        print('test_y:\n {test_y}')
+        # print('test_y_pred:\n {test_y_pred}')
+        # print('test_y:\n {test_y}')
         for y, y_pred in zip(test_y, test_y_pred):
             y_pred_label = torch.argmax(y_pred).item()
             
@@ -465,12 +465,13 @@ def main():
     print("\n============= 10-fold cross validation ============")
     k_fold_cross_validation(50)
     
-    return  
+    return model
     
 
 
 def print_torch():
-    main()
+    model = main()
+    return model
 
 if __name__ == '__main__':
     # build_dataset()
