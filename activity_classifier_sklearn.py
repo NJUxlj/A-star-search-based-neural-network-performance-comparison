@@ -34,3 +34,25 @@ class SVMModel:
 def build_dataset_svm():
     train = shuffle()
 
+
+
+
+
+
+
+
+
+
+
+
+def print_svm():
+    pass
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    pass

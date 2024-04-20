@@ -469,6 +469,9 @@ def main():
     
 
 
+def print_torch():
+    main()
+
 if __name__ == '__main__':
     # build_dataset()
     main()
