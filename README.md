@@ -10,6 +10,7 @@ CPT406 CourseWork Activity Classification
 ```python
 pip install torch==1.10.0 -i https://pypi.tuna.tsinghua.edu.cn/simple/
 pip install scikit-learn
+pip install transformers
 pip install numpy
 pip install pandas
 pip install matplotlib
