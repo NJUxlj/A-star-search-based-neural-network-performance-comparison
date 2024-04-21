@@ -24,15 +24,19 @@ pip install seaborn
     * 第二个classifier是用SVM实现的，用到的包是sklearn.
 * activity_classification_sklearn.py 中存放的是SVM
 * activity_classification_torch.py 中存放的是Neural Network
-* 后期这两个文件我会合并到一个final文件中。
+* activity_classification_transformer.py 中存放的是基于transformer架构的Bert模型，用于text分类
+* activity_classification_decisionTree.py 中存放的是决策树模型
+* 后期这两个文件我会合并到一个runner.py文件中。
+* 大家只要写第1，2 个模型就行了， 第3,4个看后期进度
 
 
 ## 项目进展
-* 现在代码已经可以运行， 你们可以参照这个先把report写掉70%。剩余的30%, 我将测试多种SVM核函数并更新到代码里，预计明晚之前弄好。
+* 模型已经完工， 针对两个模型的性能比较，我还需要加一点可视化的代码
+* 大家也可以手动比较， 就是比价 accuracy, recall, precision, f1, roc, auc 这几个指标，然后就是交叉验证的平均loss
 
 
 
-## 如何运行代码
+## IDE环境搭建
 * 前提：如果你会git的命令，那就直接把仓库拉到本地，因为我经常会更新，这样更方便。如果你不会，拿就直接把项目.zip下载到本地解压。
 * 下载vscode
 * 双击打开任意一个.py文件
@@ -46,3 +50,7 @@ pip install seaborn
 
      
 
+## 如何运行项目
+* 把项目代码打包解压到本地后， 打开runner.py文件
+* 运行即可
+* 如果你只想看单个模型的表现的话，注释掉其他模型对应的代码即可

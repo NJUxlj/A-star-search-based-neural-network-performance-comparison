@@ -1,15 +1,12 @@
+from sklearn.tree import DecisionTreeClassifier
 import numpy as np
 import pandas as pd
 from typing import Union
 import typing
 import matplotlib.pyplot as plt 
-# %matplotlib inline
-
-import seaborn as sns
-from sklearn.utils import shuffle
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix,classification_report
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix,classification_report
 
 # 导入交叉验证和参数最优化的包
 from sklearn.model_selection import cross_val_score, GridSearchCV
@@ -17,102 +14,88 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve, auc
 
-import torch
 
-# 核函数的作用：
-'''
- 核函数可以被看作是: 在高维空间中计算两个向量的内积，而无需显式地将向量映射到这个高维空间。
-                    这允许算法能够在高维空间中找到线性决策边界，从而解决原始空间中的非线性问题。
-                    
-    简单点：计算高维空间的内积，比如 K(X_i, X_j) = (X_i*X_j+C)^h
-'''
-
-class SVMModel:
+class DecisionTreeModel:
     def __init__(self):
-        # kernel function list
-        # sigma：控制高斯核函数的宽度， sigma越小， 那么函数值随两点间（X_i, X_j)距离的增大而减小地越快
-        # gamma: gamma = 1/(2*sigma^2)
-        # C: 在多项式核函数中，确保了即使在原始特征全部为零时，也能有非零的核函数输出
-        self.kernel=[
-                    {
-                        'kernel': ['rbf'], 
-                        'gamma': [1e-3, 1e-4],
-                        'C': [10, 100]
-                     },
-                    {
-                        'kernel': ['linear'], 
-                        'C': [10, 100]
-                        }
-                    ]
-        # build a primary SVM model
-        # SVC: SVM classifier
-        # cv: number of folds in cross-validation
-        
-        # self.model = GridSearchCV(SVC(probability=True),self.kernel, cv = 5)
-        self.model = GridSearchCV(SVC(),self.kernel, cv = 5)
-        
-    
-    
-    
-    def set_kernel(self, kernel):
-        '''
-        设置核函数列表
-        '''
-        self.kernel = kernel
-        
-    def set_kernel_params(self, kernel_name, gamma, C):
-        '''
-        设置核函数的参数，比如：
-        1. 多项式核的 h和c
-        2. rbf和的sigma， 8它控制着核函数的宽度， 影响模型的灵敏度
-        '''
-        kernel_index = -1
-        
-        # search kernel function in the kernel list
-        kernel_list = self.kernel
-        for i, k_dict in enumerate(kernel_list):
-            if kernel_list['kernel'] == kernel_name:
-                kernel_index = i
+        # Decision tree parameters
+        self.params = {
+            'max_depth': [None, 5, 10, 15, 20],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 5]
+        }
+        # build a primary Decision Tree model
+        self.model = GridSearchCV(DecisionTreeClassifier(), self.params, cv=5)
 
-        if kernel_index ==-1:
-            return False
-        else:
-            kernel_list[kernel_index][kernel_name]['gamma'] = gamma
-            kernel_list[kernel_index][kernel_name]['C'] = C
-            return True
-             
-    
-    def forward(self, x, y= None):
+    def forward(self, x, y=None):
         '''
         generate model's prediction
         '''
-    
+
     def __fit(self, X_train_scaled, Y_train):
         '''
         fit the training data
         '''
         self.model.fit(X_train_scaled, Y_train)
-        
-        
+
     def evaluate(self, X_train_scaled, Y_train):
-        
         print(" =======  It needs about 5 minutes, Please be patient ~~~ =====================")
         self.__fit(X_train_scaled, Y_train)
         print(f'Best score for training data:{self.model.best_score_}') 
 
-        print(f'Best C: {self.model.best_estimator_.C}') 
-        print(f'Best Kernel: {self.model.best_estimator_.kernel}')
-        print(f'Best Gamma: {self.model.best_estimator_.gamma}')
-        
+        print(f'Best max_depth: {self.model.best_estimator_.max_depth}') 
+        print(f'Best min_samples_split: {self.model.best_estimator_.min_samples_split}')
+        print(f'Best min_samples_leaf: {self.model.best_estimator_.min_samples_leaf}')
+
         final_model = self.model.best_estimator_
         return final_model
+    
+    
+    
+    
+    
+def main():
+    '''
+    展示模型指标
+    '''
+
+    X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, encoder = build_dataset()
+    
+    encoder: LabelEncoder
+    Y_test=np.array(Y_test)
+    
+    dt = DecisionTreeModel()
+    final_model:DecisionTreeClassifier = dt.evaluate(X_train_scaled,Y_train)
+    
+    # get class probability scores
+    Y_pred_prob:np.ndarray = final_model.predict_proba(X_test_scaled)
+    
+    print(f'Y_pred_prob.shape = {Y_pred_prob.shape}')
+    Y_pred=np.argmax(Y_pred_prob, axis=1)
+
+    # 0-5 的integer classes transfer to string classes
+    Y_pred_label = list(encoder.inverse_transform(Y_pred))
+
+    # 混淆矩阵
+    print(confusion_matrix(Y_test_label, Y_pred_label))
+    
+    print('\n\n')
+    
+    # 展示分类准确度指标报告
+    print(classification_report(Y_test_label, Y_pred_label))
+    
+    print("Training set score for Decision Tree: %f" % final_model.score(X_train_scaled , Y_train))
+    print("Testing  set score for Decision Tree: %f" % final_model.score(X_test_scaled  , Y_test ))
+    
+    print(" ====================== ROC =============================")
+    
+    get_roc(Y_test, Y_pred_prob)
+    
+    return final_model
 
 
 
 
-
-
-def build_dataset()->Union[typing.List[np.ndarray], StandardScaler]:
+def build_dataset()->pd.DataFrame:
     
     '''
     创建训练集和测试集
@@ -168,9 +151,6 @@ def build_dataset()->Union[typing.List[np.ndarray], StandardScaler]:
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.fit_transform(X_test)
     
-    Y_train = np.array(Y_train)
-    Y_test = np.array(Y_test)
-    
     # # 将所有数据集全部转为Tensor
     # X_train = torch.FloatTensor(X_train.to_numpy())
     # Y_train = torch.FloatTensor(Y_train)
@@ -183,7 +163,7 @@ def build_dataset()->Union[typing.List[np.ndarray], StandardScaler]:
 
 
 
-
+    
 def get_roc(test_y: np.ndarray, test_y_scores:np.ndarray):
     # Compute ROC curve and ROC area for each class
 
@@ -220,61 +200,5 @@ def get_roc(test_y: np.ndarray, test_y_scores:np.ndarray):
 
 
 
-def main():
-    '''
-    展示模型指标
-    '''
-
-    X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, encoder = build_dataset()
-    
-    encoder: LabelEncoder
-    Y_test=np.array(Y_test)
-    
-    svm= SVMModel()
-    final_model:SVC = svm.evaluate(X_train_scaled,Y_train)
-    
-    # Model Prediction
-    Y_pred:np.ndarray = final_model.predict(X_test_scaled)
-    
-    # get class probability scores
-    # Y_pred_prob:np.ndarray = final_model.predict_proba(X_test_scaled)
-    
-    # print(f'Y_pred_prob.shape = {Y_pred_prob.shape}')
-    # Y_pred=np.argmax(Y_pred_prob, axis=1)
-
-    
-    
-    # 0-5 的integer classes transfer to string classes
-    Y_pred_label = list(encoder.inverse_transform(Y_pred))
-
-    # 混淆矩阵
-    print(confusion_matrix(Y_test_label, Y_pred_label))
-    
-    print('\n\n')
-    
-    # 展示分类准确度指标报告
-    print(classification_report(Y_test_label, Y_pred_label))
-    
-    print("Training set score for SVM: %f" % final_model.score(X_train_scaled , Y_train))
-    print("Testing  set score for SVM: %f" % final_model.score(X_test_scaled  , Y_test ))
-    
-    
-    
-    print(" ====================== ROC =============================")
-    
-    # get_roc(Y_test, Y_pred_prob)
-    
-    return final_model
-
-def print_svm():
-    final_model = main()
-    return final_model
-
-
-
-
-
-
 if __name__ == '__main__':
-    # build_dataset()
     main()

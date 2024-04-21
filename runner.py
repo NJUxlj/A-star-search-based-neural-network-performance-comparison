@@ -9,6 +9,12 @@ from activity_classifier_torch import *
 from activity_classifier_transformer import *
 
 import time
+from typing import Union
+import typing
+
+from sklearn.metrics import classification_report, roc_curve, roc_auc_score, precision_score, recall_score, f1_score
+from sklearn.preprocessing import label_binarize
+
 
 
 def build_dataset()->pd.DataFrame:
@@ -68,6 +74,10 @@ def build_dataset()->pd.DataFrame:
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.fit_transform(X_test)
     
+    
+    Y_train = np.array(Y_train)
+    Y_test = np.array(Y_test)
+    
     # # 将所有数据集全部转为Tensor
     # X_train = torch.FloatTensor(X_train.to_numpy())
     # Y_train = torch.FloatTensor(Y_train)
@@ -82,9 +92,6 @@ def build_dataset()->pd.DataFrame:
 
 def compare_models(model1:TorchModel, model2:SVMModel):
 
-    
-    
-    
     '''
     比较3中不同模型的分类性能
     
@@ -95,22 +102,59 @@ def compare_models(model1:TorchModel, model2:SVMModel):
     X_train_scaled, Y_train, X_test_scaled, Y_test = build_dataset()
     
     
-    X_test_scaled_model1 = torch.Tensor(X_test_scaled)
-    Y_test_model1 = torch.Tensor(Y_test)
+    X_test_scaled_model1 = torch.Tensor(X_test_scaled).detach()
+    Y_test_model1 = torch.Tensor(Y_test).detach()
     
     # 使用TorchModel进行预测
-    model1_pred = model1(X_test_scaled_model1)
+    # model1_pred = model1(X_test_scaled_model1).detach()
+    model1_pred = torch.max(model1(X_test_scaled_model1), 1)[1].detach()
     model1_accuracy = accuracy_score(Y_test_model1, model1_pred)
+    model1_precision = precision_score(Y_test_model1, model1_pred, average='macro')
+    model1_recall = recall_score(Y_test_model1, model1_pred, average='macro')
+    model1_f1 = f1_score(Y_test_model1, model1_pred, average='macro')
+    model1_roc_auc = roc_auc_score(label_binarize(Y_test_model1, classes=[0,1,2,3,4,5]), label_binarize(model1_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
+
 
     # 使用SVMModel进行预测
     model2_pred = model2.predict(X_test_scaled)
     model2_accuracy = accuracy_score(Y_test, model2_pred)
+    model2_precision = precision_score(Y_test, model2_pred, average='macro')
+    model2_recall = recall_score(Y_test, model2_pred, average='macro')
+    model2_f1 = f1_score(Y_test, model2_pred, average='macro')
+    model2_roc_auc = roc_auc_score(label_binarize(Y_test, classes=[0,1,2,3,4,5]), label_binarize(model2_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
+    
+    
+    # 有其他模型， 往下继续加就行
 
     # 创建条形图
-    plt.bar(['NeuralNetwork', 'SVM'], [model1_accuracy, model2_accuracy])
-    plt.xlabel('Model')
-    plt.ylabel('Accuracy')
-    plt.title('Model Comparison')
+    metrics = ['Accuracy', 'Precision', 'Recall', 'F1-score', 'ROC AUC']
+    model1_scores = [model1_accuracy, model1_precision, model1_recall, model1_f1, model1_roc_auc]
+    model2_scores = [model2_accuracy, model2_precision, model2_recall, model2_f1, model2_roc_auc]
+    
+    x = np.arange(len(metrics))  # the label locations
+    width = 0.35  # the width of the bars
+    
+    # fig: 图形窗口
+    # ax: sub-plot
+    fig, ax = plt.subplots()
+    # 条形子图
+    rects1 = ax.bar(x - width/2, model1_scores, width, label='TorchModel')
+    rects2 = ax.bar(x + width/2, model2_scores, width, label='SVMModel')
+    
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Performance Scores')
+    ax.set_title('Classification Performance between Models')
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics)
+    ax.legend()
+
+    fig.tight_layout()  
+
+    # plt.bar(['NeuralNetwork', 'SVM'], [model1_accuracy, model2_accuracy])
+    # plt.xlabel('Model')
+    # plt.ylabel('Accuracy')
+    # plt.title('Model Comparison')
+    
     plt.show()
     
 

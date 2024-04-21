@@ -3,6 +3,9 @@ import torch
 
 import numpy as np
 import pandas as pd
+from typing import Union
+import typing
+
 
 # sklearn related packages
 from sklearn.utils import shuffle
@@ -126,6 +129,8 @@ def build_dataset()->pd.DataFrame:
     
     # print(Y_train)
     
+    # 准备画布
+    plt.figure(figsize=(10, 8))
     
     # 使用饼图展示原始数据分布
     temp = train["Activity"].value_counts()
@@ -365,6 +370,9 @@ def k_fold_cross_validation(k):
 
     print(f'{k}-fold CV\'s average loss = {np.mean(watch_loss):.2f}')
     
+    # 准备画布
+    plt.figure(figsize=(10, 8))
+    
     # 绘制损失的历史数据
     plt.plot(watch_loss)
     plt.title('Loss history')
@@ -436,6 +444,8 @@ def main():
     
     # 画出性能曲线
     print(log)
+    # 准备画布
+    plt.figure(figsize=(10, 8))
     plt.plot(range(len(log)), [x[0] for x in log], label = 'accuracy')
     plt.plot(range(len(log)),[x[1] for x in log], label = 'loss')
     plt.legend()
