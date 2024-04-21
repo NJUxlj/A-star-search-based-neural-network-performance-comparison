@@ -155,7 +155,7 @@ def build_dataset()->pd.DataFrame:
     print('--------------------------------')
     print(f"Number of feature = {X_train.shape[1]}")
     
-    return  X_train, Y_train, X_test, Y_test
+    return  X_train, Y_train, X_test, Y_test, Y_test_label, le
 
 
 
@@ -405,7 +405,9 @@ def main():
     log = []
     
     # 创建训练集
-    train_x, train_y, test_x, test_y = build_dataset()
+    train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    
+    final_encoder: LabelEncoder
     
     for epoch in range(epoch_num):
         model.train()
@@ -457,13 +459,13 @@ def main():
     
     test_y_pred_label = one_hot_to_single(test_y_pred)
     # print(f"test_y_pred_label = {test_y_pred_label}")
-    
+    test_y_pred_label=final_encoder.inverse_transform(test_y_pred_label)
     print("\n=========== confusion matrix ==============")
-    print(confusion_matrix(test_y,test_y_pred_label))
+    print(confusion_matrix(test_y_label,test_y_pred_label))
     
     
     print("\n=========== classification report ==============")
-    print(classification_report(test_y,test_y_pred_label))
+    print(classification_report(test_y_label,test_y_pred_label))
     
     
     print("\n=========== ROC ==============")
