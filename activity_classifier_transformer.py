@@ -44,17 +44,29 @@ class NewsDataset(Dataset):
     def __init__(self, texts, labels, tokenizer):
         self.texts = texts
         self.labels = labels
+        # 将文本转化为模型能够理解的格式， 比如tokens
         self.tokenizer = tokenizer
 
     def __len__(self):
+        '''
+        return the length of the text
+        '''
         return len(self.texts)
 
     def __getitem__(self, idx):
+        '''
+        :idx: 索引
+        
+        :return 
+        '''
         text = self.texts[idx]
         label = self.labels[idx]
+        # 将文本分割为令牌
+        # 添加特殊的开始和结束令牌
         encoding = self.tokenizer.encode_plus(
             text,
             add_special_tokens=True,
+            # 不足64，则自动填充
             max_length=64,
             return_token_type_ids=False,
             padding='max_length',
