@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
+import pandas as pd
 
 # BertTokenizer: divide a text into many tokens
 # BertForSequenceClassification: classify a text into certain class
@@ -7,6 +8,8 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
+
 import numpy as np
 from typing import Union
 import typing
@@ -113,6 +116,93 @@ def main():
     print(f"Test Accuracy: {accuracy}")
 
 
+
+
+def build_dataset():
+       
+    '''
+    创建训练集和测试集
+    '''
+    train: pd.DataFrame = pd.read_csv('./train.csv')
+    test: pd.DataFrame = pd.read_csv('./test.csv')
+    
+    # 测试缺失值
+    # isnull: 返回一个类型为bool的dataFrame
+    # values: dataframe 转 numpy
+    # any(): 有缺失值就返回True
+    print("Does train has any missing value? %s"%train.isnull().values.any())
+    
+    # 填充缺失值
+    if train.isnull().values.any():  
+        # 使用每一列的平均值填充该列的缺失值， inplace: 原位修改
+        train.fillna(train.mean(), inplace=True)
+        test.fillna(test.mean(), inplace=True)
+    
+    
+    print("===== 数据处理有点慢， 请耐心等待 =========")
+    
+    # plt打印数据分布 --- 略
+    
+    # 将数据集中的特征列和标签列分离开来
+    # train.drop: 删除这两列， axis=1: 删除的是列
+    X_train = pd.DataFrame(train.drop(['Activity','subject'],axis=1))
+    # values：获取DataFrame列的值
+    # astype(object): 将列中的值转为object类型
+    Y_train_label = train.Activity.values.astype(object)
+    X_test = pd.DataFrame(test.drop(['Activity','subject'],axis=1))
+    Y_test_label = test.Activity.values.astype(object)
+    
+    
+    # 对 X_train 和 X_test 每行中的特诊进行拼接
+    X_train_combine = X_train.apply(lambda x: ','.join(map(str, x)), axis=1)
+    
+    # 转成矩阵
+    X_train_combine: np.ndarray = X_train_combine.values.reshape(-1,1)
+    # print(f'X_train_combine = \n{X_train_combine}')
+    
+    
+
+    X_test_combine = X_test.apply(lambda x: ','.join(map(str, x)), axis=1)
+    
+
+    X_test_combine: np.ndarray = X_test_combine.values.reshape(-1,1)
+    print(f'X_test_combine = \n{X_train_combine}')
+    
+    
+    # 将标签列Activity中的string映射成整数，这样模型才可以学习一个函数来预测这个整数
+    # 读取activity列中的所有字符串到一个列表 ... 手动赋予编码0-5
+    # 创建一个标签编码器对象
+    le = LabelEncoder()
+    Y_train: np.ndarray = le.fit_transform(Y_train_label)
+    Y_test: np.ndarray = le.fit_transform(Y_test_label)
+
+    
+
+    
+    # 将所有数据集全部转为Tensor
+    # X_train = torch.FloatTensor(X_train.to_numpy())
+    # Y_train = torch.FloatTensor(Y_train)
+    # X_test = torch.FloatTensor(X_test.to_numpy())
+    # Y_test = torch.FloatTensor(Y_test)
+    
+
+    
+    
+    print(f"X_train.shape：{X_train.shape}")
+    print(f"Y_train.shape：{Y_train.shape}")
+    print(f"X_test.shape：{X_test.shape}")
+    print(f"Y_test.shape：{Y_test.shape}")
+    
+    print(f"X_train_combine：{X_train_combine.shape}")
+    print(f"X_test_combine：{X_test_combine.shape}")
+    print('--------------------------------')
+    print(f"Number of feature = {X_train.shape[1]}")
+    
+    return  X_train_combine, Y_train, X_test_combine, Y_test, Y_test_label, le
+
+
+
+
 def print_transformer():
     main()
 
@@ -122,4 +212,5 @@ def print_transformer():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    build_dataset()

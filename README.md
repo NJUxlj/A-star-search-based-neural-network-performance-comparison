@@ -4,11 +4,20 @@ CPT406 CourseWork Activity Classification
 ## 注：你们自己不要动代码
 
 ## 项目环境配置
-* 打开anaconda 控制台
+* 下载anaconda 并配置环境变量，不会的自己去搜
+* 创建一个新的conda环境
+* conda create --name 环境名字 python=3.8
+* conda env list，查看当前有哪些环境
+* conda activate 你的环境名
+
+* 打开anaconda 控制台  (Anaconda Prompt)
 * 输入：conda activate 环境名
 * 输入以下命令
 ```python
 pip install torch==1.10.0 -i https://pypi.tuna.tsinghua.edu.cn/simple/
+
+如果1.10.0版本的torch下载不了，那就直接：pip install torch
+
 pip install scikit-learn
 pip install transformers
 pip install numpy
@@ -26,12 +35,12 @@ pip install seaborn
 * activity_classification_torch.py 中存放的是Neural Network
 * activity_classification_transformer.py 中存放的是基于transformer架构的Bert模型，用于text分类
 * activity_classification_decisionTree.py 中存放的是决策树模型
-* 后期这两个文件我会合并到一个runner.py文件中。
+* 所有的模型会合并到一个runner.py文件中。
 * 大家只要写第1，2 个模型就行了， 第3,4个看后期进度
 
 
 ## 项目进展
-* 模型已经完工， 针对两个模型的性能比较，我还需要加一点可视化的代码
+* 模型已经完工。
 * 大家也可以手动比较， 就是比价 accuracy, recall, precision, f1, roc, auc 这几个指标，然后就是交叉验证的平均loss
 
 
