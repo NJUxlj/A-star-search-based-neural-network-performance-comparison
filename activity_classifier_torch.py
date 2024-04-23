@@ -19,6 +19,8 @@ from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 
 
+from activity_classifier_sklearn import *
+
 # self-defined neural network class
 class TorchModel(nn.Module):
     def __init__(self, input_size: int):
@@ -85,6 +87,93 @@ class TorchModel(nn.Module):
     
     
     
+
+# 优先队列
+import heapq
+
+class Node:
+    def __init__(self, layers, units, activation, performance):
+        # hidden layer numbers
+        self.layers = layers
+        # hidden units numbers
+        self.units = units
+        # nn.Relu ... 
+        self.activation:nn.Module = activation
+        # avg(f1+auc)
+        self.performance = performance
+
+    def __lt__(self, other):
+        return self.performance < other.performance
+    
+    
+
+def A_star_search(initial_node, get_neighbors, evaluate):
+    '''
+    A* 算法， 用来寻找使得神经网络分类性能最高的超参数：线性层的层数， 每层hidden unit的数量， 激活函数的种类
+    '''
+    queue = []
+    heapq.heappush(queue, initial_node)
+
+    while queue:
+        current_node = heapq.heappop(queue)
+        if is_goal(current_node):
+            return current_node
+
+        neighbors = get_neighbors(current_node)
+        for neighbor in neighbors:
+            neighbor.performance = evaluate_node(neighbor)
+            heapq.heappush(queue, neighbor)
+
+    return None
+
+def get_neighbors(node:Node):
+    # Generate neighbors by changing one hyperparameter at a time
+    neighbors = []
+    
+    # generate neighbor by changing NN's layer number
+    # 减少、或增加层数的节点都可以被当做邻居
+    if node.layers > 1:
+        neighbors.append(Node(node.layers - 1, node.units, node.activation, 0))
+    neighbors.append(Node(layers=node.layers+1, units=node.units, activation=node.activation, performance=0))
+    
+    
+    # Generate neighbors by changing the number of units
+    if node.units > 1:  
+        neighbors.append(Node(node.layers, node.units - 1, node.activation, 0))
+    neighbors.append(Node(node.layers, node.units + 1, node.activation, 0))
+    
+    
+    # Generate neighbors by changing the activation function
+    activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]
+    current_activation_index = activation_functions.index(node.activation)
+    next_activation_index = (current_activation_index + 1) % len(activation_functions)
+    neighbors.append(Node(node.layers, node.units, activation_functions[next_activation_index], 0))
+    
+    return neighbors
+    
+
+
+def evaluate_node(node):
+    # Train and evaluate a neural network with the given hyperparameters
+    pass
+
+def is_goal(node):
+    # Check if the performance of the node is good enough
+    
+    '''
+    我们这里将f1-score 和 auc的平均值设为性能指标
+    '''
+    goal = (0.96)
+    pass
+
+
+    
+
+
+
+
+
+
 
 
 def build_dataset()->pd.DataFrame:
@@ -408,7 +497,21 @@ def k_fold_cross_validation(k):
     plt.ylabel('Loss')
     plt.show()
 
+
+
+
+
+
+
+def fine_tune(model:TorchModel):
+    '''
+    微调模型的超参数
+    '''
     
+    
+    
+    
+
 
 # 执行训练任务
 def main():
