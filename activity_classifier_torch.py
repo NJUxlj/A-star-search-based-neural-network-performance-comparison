@@ -31,8 +31,10 @@ class TorchModel(nn.Module):
         # input_size 就是每一个样本的特征数量 (假设是20)
         # 假设我们有一个输入矩阵 X(row=n, col = 20), 一个线性层的权重矩阵W(row = 20, col = 6)
         # 线性层的作用就是计算 X*W +b, 其中X*W(row = n, col = 6), b是常数（偏置值）
-        self.linear = nn.Linear(input_size, 6) 
-        
+        self.linear1 = nn.Linear(input_size, 15) 
+        self.linear2 = nn.Linear(15, 15) 
+        self.linear3 = nn.Linear(15, 15) 
+        self.linear4 = nn.Linear(15, 6) 
         
         # 线性层输出矩阵的每一行都是一个分类向量，形如 [1.2, 3.4, 5.5 ,0.2, 0.8, 0.9]
         # 这些数乍一看是无规则的，没什么意义， 因此我们要用softmax函数给他过滤一下
@@ -49,8 +51,17 @@ class TorchModel(nn.Module):
         '''
         
         # 得到线性层的输出
-        x = self.linear(x)
+        x = self.linear1(x)
+        x = nn.Tanh()(x)
         
+        x = self.linear2(x)
+        x = nn.Tanh()(x)
+        
+        x = self.linear3(x)
+        x = nn.Tanh()(x)
+        
+        
+        x = self.linear4(x)
         # 放入激活函数得到6个类的概率分布
         # softmax做完以后， 结果会被自动放入one-hot 函数，转为 0-1矩阵
         # 为什么要用one-hot, 因为单纯的概率分布向量看着不是很直观，并且loss不是太好计算
@@ -59,6 +70,7 @@ class TorchModel(nn.Module):
         
         # y_pred.shape = (n, 6)
         y_pred:torch.Tensor= self.activation(x)
+        
         
         
         if y is not None:
@@ -121,10 +133,17 @@ def build_dataset()->pd.DataFrame:
     # print(Y_train)
     # print(type(Y_train))
     
+    # normalize every values in feature columns
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    X_train_scaled:np.ndarray = scaler.fit_transform(X_train)
+    X_test_scaled: np.ndarray = scaler.fit_transform(X_test)
+    
+    
     # 将所有数据集全部转为Tensor
-    X_train = torch.FloatTensor(X_train.to_numpy())
+    X_train = torch.FloatTensor(X_train_scaled)
     Y_train = torch.FloatTensor(Y_train)
-    X_test = torch.FloatTensor(X_test.to_numpy())
+    X_test = torch.FloatTensor(X_test_scaled)
     Y_test = torch.FloatTensor(Y_test)
     
     # print(Y_train)
@@ -359,10 +378,11 @@ def k_fold_cross_validation(k):
         X_test = X_dataset[i*(fold_size):(i+1)*fold_size]
         Y_test = Y_dataset[i*(fold_size):(i+1)*fold_size]
         
-        X_train = X_dataset[(i+1)*fold_size:]
-        Y_train = Y_dataset[(i+1)*fold_size:]
+        X_train = torch.cat((X_dataset[:i*fold_size], X_dataset[(i+1)*fold_size:]), dim=0)
+        Y_train = torch.cat((Y_dataset[:i*fold_size], Y_dataset[(i+1)*fold_size:]), dim=0)
+        # X_train = X_dataset[(i+1)*fold_size:]
+        # Y_train = Y_dataset[(i+1)*fold_size:]
     
-        model.train()
         loss = model(X_train, Y_train)
         loss.backward()  # 计算梯度
         optim.step() # 更新参数
