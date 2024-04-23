@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
+import matplotlib.pyplot as plt 
 
 # BertTokenizer: divide a text into many tokens
 # BertForSequenceClassification: classify a text into certain class
@@ -9,6 +10,9 @@ from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import confusion_matrix,classification_report
+
+from sklearn.metrics import roc_curve, auc
 
 import numpy as np
 from typing import Union
@@ -74,44 +78,117 @@ class NewsDataset(Dataset):
             return_tensors='pt',
             truncation=True
         )
+        '''
+        'input_ids': 这是文本经过分词器处理后的结果，
+                        每个词都被转换成了一个唯一的ID。这些ID是模型的输入，模型会用它们来查找词嵌入。
+        
+        'attention_mask': 这是一个与输入ID (input_ids) 相同长度的二进制向量，
+                        用于指示哪些词是实际的词，哪些词是填充词。
+                        例如，如果输入序列的长度小于64，那么剩余的位置会被填充为0，
+                        对应的attention mask也会被设置为0。模型会忽略mask为0的词。
+        
+        'labels': 这是文本的标签，也就是我们希望模型预测的目标。
+        '''
+        
+        
         return {
+            # flatten: transfer multi-dimension vector into one-dimension vector
+
+                    # 将input_ids张量从形状(batch_size, sequence_length)
+                    # 转换为形状(batch_size * sequence_length,)
+                    
             'input_ids': encoding['input_ids'].flatten(),
             'attention_mask': encoding['attention_mask'].flatten(),
             'labels': torch.tensor(label)
         }
 
 
+def evaluate(model:BertForSequenceClassification, test_labels:np.ndarray):
+    '''
+    评估模型
+    '''
+    model.eval()
+    predictions = []
+    with torch.no_grad(): # 使用torch.no_grad()来禁用梯度计算，从而减少内存消耗并加速计算
+        for batch in test_loader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            logits = outputs.logits
+            predictions.extend(torch.argmax(logits, dim=-1).tolist())
+
+    accuracy = accuracy_score(test_labels, predictions)
+    print(f"Test Accuracy: {accuracy}")
+    
 
 
+def test_bert():
+    # from transformers import pipeline
+    # unmasker = pipeline('fill-mask', model='bert-base-uncased')
+    # unmasker("Hello I'm a [MASK] model.")
+    
+    # Load model directly
+    from transformers import AutoTokenizer, AutoModelForMaskedLM
+
+    tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
+    model = AutoModelForMaskedLM.from_pretrained("google-bert/bert-base-uncased")
+    
+    
+    
 
 def main():
+    
+    # 加载数据集
+    X_train_combine, Y_train, Y_train_label, X_test_combine, Y_test, Y_test_label, le = build_dataset()
+    
+    
     # 初始化Tokenizer和模型
-    # 加载了预训练的BERT模型和分词器。num_labels=3指定了模型的输出类别数。
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)    
+    # 加载了预训练的BERT模型和分词器。num_labels=6指定了模型的输出类别数。
+    # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('D:/huggingFace/bert_model')
+    
+    model = BertForSequenceClassification.from_pretrained('D:/huggingFace/bert_model', num_labels=6)    
 
+    
 
-    train_texts, test_texts, train_labels, test_labels = train_test_split(texts, labels, test_size=0.2)
-    train_dataset = NewsDataset(train_texts, train_labels, tokenizer)
-    test_dataset = NewsDataset(test_texts, test_labels, tokenizer)
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=2)
+    # train_texts, test_texts, train_labels, test_labels = train_test_split(texts, labels, test_size=0.2)
+    train_dataset = NewsDataset(X_train_combine, Y_train_label, tokenizer)
+    test_dataset = NewsDataset(X_test_combine, Y_test_label, tokenizer)
+    # shuffle means randomly pick 100 samples as a batch
+    train_loader = DataLoader(train_dataset, batch_size=100, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=100)
 
     # 训练模型
+    
+    # create a "device" object
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # 将模型的所有参数和缓冲区移动到指定的设备上
     model = model.to(device)
-    optimizer = AdamW(model.parameters(), lr=5e-5)
-
-    for epoch in range(3):  # 训练3个周期
+    
+    # why use AdamW:
+    # 1. AdamW is a variation of Adam, it uses L2 regularization to utilize "weight decay" to prevent overfitting
+    # 2. Bert has large quantity of parameters and very easy to overfitting
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    watch_loss = []
+    for epoch in range(10):  # 训练3个周期
         model.train()
         for batch in train_loader:
+            # 创建了一个字典推导式， k是键， v是k对应的张量， v.to(device)将张量移动到设备上
+            # batch字典可能包含了如input_ids，attention_mask等模型需要的输入数据
             batch = {k: v.to(device) for k, v in batch.items()}
+            # **操作符是Python中的解包（unpacking）操作符，
+            # 它会将字典batch中的键值对作为关键字参数传递给model函数。
             outputs = model(**batch)
             loss = outputs.loss
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            
+        watch_loss.append(loss.item())
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+        plt.figure(10,8)
+        plt.plot([x for x in watch_loss], label = 'Training Loss')
+        plt.legend()
+        plt.show()
     
     
     # 评估模型
@@ -124,16 +201,24 @@ def main():
             logits = outputs.logits
             predictions.extend(torch.argmax(logits, dim=-1).tolist())
 
-    accuracy = accuracy_score(test_labels, predictions)
+    accuracy = accuracy_score(Y_test_label, predictions)
     print(f"Test Accuracy: {accuracy}")
+    
+    
+    
+    
+    print()
 
 
 
 
-def build_dataset():
+def build_dataset()->Union[np.ndarray,torch.FloatTensor, torch.LongTensor]:
        
     '''
     创建训练集和测试集
+    
+    :Y_train: 包含类标签对应整数的列
+    :Y_train_label: 包含类标签的列
     '''
     train: pd.DataFrame = pd.read_csv('./train.csv')
     test: pd.DataFrame = pd.read_csv('./test.csv')
@@ -165,19 +250,19 @@ def build_dataset():
     Y_test_label = test.Activity.values.astype(object)
     
     
-    # 对 X_train 和 X_test 每行中的特诊进行拼接
-    X_train_combine = X_train.apply(lambda x: ','.join(map(str, x)), axis=1)
+    # 对 X_train 和 X_test 每行中的特征进行拼接
+    X_train_combine:pd.DataFrame = X_train.apply(lambda x: ','.join(map(str, x)), axis=1)
     
     # 转成矩阵
-    X_train_combine: np.ndarray = X_train_combine.values.reshape(-1,1)
+    # X_train_combine: np.ndarray = X_train_combine.values.reshape(-1,1)
     # print(f'X_train_combine = \n{X_train_combine}')
     
     
 
-    X_test_combine = X_test.apply(lambda x: ','.join(map(str, x)), axis=1)
+    X_test_combine:pd.DataFrame = X_test.apply(lambda x: ','.join(map(str, x)), axis=1)
     
 
-    X_test_combine: np.ndarray = X_test_combine.values.reshape(-1,1)
+    # X_test_combine: np.ndarray = X_test_combine.values.reshape(-1,1)
     print(f'X_test_combine = \n{X_train_combine}')
     
     
@@ -192,10 +277,15 @@ def build_dataset():
 
     
     # 将所有数据集全部转为Tensor
-    # X_train = torch.FloatTensor(X_train.to_numpy())
-    # Y_train = torch.FloatTensor(Y_train)
-    # X_test = torch.FloatTensor(X_test.to_numpy())
-    # Y_test = torch.FloatTensor(Y_test)
+    X_train = torch.FloatTensor(X_train.to_numpy())
+    Y_train = torch.LongTensor(Y_train)
+    # Y_train_label = torch.StringTensor(Y_train_label)
+    
+    
+    X_test = torch.FloatTensor(X_test.to_numpy())
+    Y_test = torch.LongTensor(Y_test)
+    # Y_test_label = torch.FloatTensor(Y_test_label)
+    
     
 
     
@@ -210,7 +300,7 @@ def build_dataset():
     print('--------------------------------')
     print(f"Number of feature = {X_train.shape[1]}")
     
-    return  X_train_combine, Y_train, X_test_combine, Y_test, Y_test_label, le
+    return  X_train_combine, Y_train_label, Y_train, X_test_combine, Y_test, Y_test_label, le
 
 
 
@@ -224,5 +314,6 @@ def print_transformer():
 
 
 if __name__ == '__main__':
-    # main()
-    build_dataset()
+    main()
+    # test_bert()
+    # build_dataset()

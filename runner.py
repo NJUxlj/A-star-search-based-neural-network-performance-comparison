@@ -7,6 +7,7 @@ import activity_classifier_torch
 from activity_classifier_sklearn import *
 from activity_classifier_torch import *
 from activity_classifier_transformer import *
+from activity_classifier_randomForestSklearn import *
 
 import time
 from typing import Union
@@ -173,6 +174,10 @@ if __name__ == '__main__':
     
     # run the second model
     model2 = print_svm()
+    
+    
+    
+    print_randomForestSklearn()
     
     
     
