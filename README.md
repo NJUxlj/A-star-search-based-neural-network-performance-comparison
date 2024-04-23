@@ -42,6 +42,9 @@ pip install seaborn
 ## 项目进展
 * 模型已经完工。
 * 大家也可以手动比较， 就是比价 accuracy, recall, precision, f1, roc, auc 这几个指标，然后就是交叉验证的平均loss
+* 
+* main分支几乎不会更改了，但会修复bug
+* ### 最新进展请移步 dev分支 查看
 
 
 
