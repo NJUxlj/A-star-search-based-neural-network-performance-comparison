@@ -15,190 +15,112 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve, auc
 
 
-class DecisionTreeModel:
-    def __init__(self):
-        # Decision tree parameters
-        self.params = {
-            'max_depth': [None, 5, 10, 15, 20],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 5]
-        }
-        # build a primary Decision Tree model
-        self.model = GridSearchCV(DecisionTreeClassifier(), self.params, cv=5)
 
-    def forward(self, x, y=None):
-        '''
-        generate model's prediction
-        '''
+import numpy as np
+import pandas as pd
 
-    def __fit(self, X_train_scaled, Y_train):
-        '''
-        fit the training data
-        '''
-        self.model.fit(X_train_scaled, Y_train)
+def calculate_entropy(y):
+    """
+    计算给定标签的熵
+    """
+    
+    # 找出数组y中的所有唯一值，并将这些唯一值赋值给class_labels
+    class_labels = np.unique(y)
+    entropy = 0
+    for cls in class_labels:
+        # y[y == cls]是一个布尔索引，它会返回一个新的数组，这个新的数组只包含y中等于cls的元素。
+        p = len(y[y == cls]) / len(y)
+        entropy -= p * np.log2(p)
+    return entropy
 
-    def evaluate(self, X_train_scaled, Y_train):
-        print(" =======  It needs about 5 minutes, Please be patient ~~~ =====================")
-        self.__fit(X_train_scaled, Y_train)
-        print(f'Best score for training data:{self.model.best_score_}') 
-
-        print(f'Best max_depth: {self.model.best_estimator_.max_depth}') 
-        print(f'Best min_samples_split: {self.model.best_estimator_.min_samples_split}')
-        print(f'Best min_samples_leaf: {self.model.best_estimator_.min_samples_leaf}')
-
-        final_model = self.model.best_estimator_
-        return final_model
+def calculate_information_gain(X, y, feature_index):
+    """
+    计算某一个特征的information gain
+    """
+    # 总熵
+    total_entropy = calculate_entropy(y)
     
+    # 计算权重熵
     
-    
-    
-    
-def main():
-    '''
-    展示模型指标
-    '''
-
-    X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, encoder = build_dataset()
-    
-    encoder: LabelEncoder
-    Y_test=np.array(Y_test)
-    
-    dt = DecisionTreeModel()
-    final_model:DecisionTreeClassifier = dt.evaluate(X_train_scaled,Y_train)
-    
-    # get class probability scores
-    Y_pred_prob:np.ndarray = final_model.predict_proba(X_test_scaled)
-    
-    print(f'Y_pred_prob.shape = {Y_pred_prob.shape}')
-    Y_pred=np.argmax(Y_pred_prob, axis=1)
-
-    # 0-5 的integer classes transfer to string classes
-    Y_pred_label = list(encoder.inverse_transform(Y_pred))
-
-    # 混淆矩阵
-    print(confusion_matrix(Y_test_label, Y_pred_label))
-    
-    print('\n\n')
-    
-    # 展示分类准确度指标报告
-    print(classification_report(Y_test_label, Y_pred_label))
-    
-    print("Training set score for Decision Tree: %f" % final_model.score(X_train_scaled , Y_train))
-    print("Testing  set score for Decision Tree: %f" % final_model.score(X_test_scaled  , Y_test ))
-    
-    print(" ====================== ROC =============================")
-    
-    get_roc(Y_test, Y_pred_prob)
-    
-    return final_model
-
-
-
-
-def build_dataset()->pd.DataFrame:
+    values, counts = np.unique(X[:, feature_index], return_counts=True) # 获取特征feature_index所有唯一值及其出现次数
+    weighted_entropy = 0
+    for v, c in zip(values, counts):
+        sub_y = y[X[:, feature_index] == v] # 获取特征值为v的所有样本的标签, 并组成一个子集
+        # 计算子集的熵
+        entropy = calculate_entropy(sub_y)
+        # 计算这些样本的加权熵，并累加到weighted_entropy上。权重是这些样本的比例，即c / len(X)。
+        weighted_entropy += (c / len(X)) * entropy
     
     '''
-    创建训练集和测试集
+    weighted_entropy就是特征feature_index的加权熵。
+    这个值反映了根据该特征划分数据集后，各子集的熵的加权平均。
+    在决策树算法中，我们通常会选择加权熵最小的特征作为划分特征，因为这样可以获取最大的信息增益。
+    
     '''
-    train: pd.DataFrame = pd.DataFrame(shuffle(pd.read_csv('./train.csv')))
-    test: pd.DataFrame = pd.DataFrame(shuffle(pd.read_csv('./test.csv')))
-    
-    # 测试缺失值
-    # isnull: 返回一个类型为bool的dataFrame
-    # values: dataframe 转 numpy
-    # any(): 有缺失值就返回True
-    print("Does train has any missing value? %s"%train.isnull().values.any())
-    
-    # 填充缺失值
-    if train.isnull().values.any():  
-        # 使用每一列的平均值填充该列的缺失值， inplace: 原位修改
-        train.fillna(train.mean(), inplace=True)
-        test.fillna(test.mean(), inplace=True)
     
     
-    print("===== 数据处理有点慢， 请耐心等待 =========")
-    
-    
-    # 将数据集中的特征列和标签列分离开来
-    X_train = pd.DataFrame(train.drop(['Activity','subject'],axis=1))
-    # values：获取DataFrame列的值
-    # astype(object): 将列中的值转为object类型
-    Y_train_label = train.Activity.values.astype(object)
-    
-    
-    X_test = pd.DataFrame(test.drop(['Activity','subject'],axis=1))
-    Y_test_label = test.Activity.values.astype(object)
-    
-    
-    # dataset最后一列类标签转为数字0-5
-    encoder = LabelEncoder()
-    encoder.fit(Y_train_label)
-    Y_train = encoder.transform(Y_train_label)
-    
-    encoder.fit(Y_test_label)
-    # get am array that each ele is a class-mapping-number [0-5]
-    Y_test = encoder.transform(Y_test_label)
+    # 信息增益
+    information_gain = total_entropy - weighted_entropy
+    return information_gain
 
-    # 里面存了针对Y_test_label的编码器
-    final_encoder = encoder
-    print(f'Dimension of the train set: {X_train.shape}')
-    print(f'Dimension of the test set: {X_test.shape}')
-    print(f'Number of features = {X_train.shape[1]}')
-    # print(f'Name of all features: \n{X_train.columns.values}')
+def best_feature_to_split(X, y):
+    """找到最佳分割特征的索引"""
+    n_features = X.shape[1]
+    information_gains = [calculate_information_gain(X, y, i) for i in range(n_features)]
+    return np.argmax(information_gains)
 
-    # normalize every values in feature columns
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.fit_transform(X_test)
+def build_tree(X, y, depth=0, max_depth=10):
+    """递归构建决策树"""
+    if len(np.unique(y)) == 1 or len(y) == 0:
+        # 如果所有输出相同，或者没有数据，返回结果
+        return np.unique(y)[0] if len(y) > 0 else None
     
-    # # 将所有数据集全部转为Tensor
-    # X_train = torch.FloatTensor(X_train.to_numpy())
-    # Y_train = torch.FloatTensor(Y_train)
-    # X_test = torch.FloatTensor(X_test.to_numpy())
-    # Y_test = torch.FloatTensor(Y_test)
+    if depth == max_depth:
+        # 达到最大深度，返回多数类
+        values, counts = np.unique(y, return_counts=True)
+        return values[np.argmax(counts)]
     
-
+    # 选择最佳分割特征
+    feature_index = best_feature_to_split(X, y)
+    values = np.unique(X[:, feature_index])
+    tree = {}
+    tree[feature_index] = {}
     
-    return  X_train_scaled, Y_train, X_test_scaled, Y_test, Y_test_label, final_encoder
-
-
-
+    # 为每个特征值构建子树
+    for value in values:
+        sub_X = X[X[:, feature_index] == value]
+        sub_y = y[X[:, feature_index] == value]
+        tree[feature_index][value] = build_tree(sub_X, sub_y, depth + 1, max_depth)
     
-def get_roc(test_y: np.ndarray, test_y_scores:np.ndarray):
-    # Compute ROC curve and ROC area for each class
+    return tree
 
-    import warnings
-    from sklearn.exceptions import UndefinedMetricWarning
+# 示例数据加载和模型训练
+# 假设 data 是已经加载的 DataFrame，包含 251 个特征和 1 个标签列
+data = pd.read_csv("your_dataset.csv")
+X = data.iloc[:, :-1].values  # 特征
+y = data.iloc[:, -1].values   # 标签
 
-    # 忽略 UndefinedMetricWarning, 用于忽略控制台的警告信息
-    warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+# 构建决策树
+decision_tree = build_tree(X, y)
 
-
-    # 准备画布
-    plt.figure(figsize=(10, 8))
-
-    for i in range(test_y_scores.shape[1]):
-        y=test_y
-        y_prob =test_y_scores[:,i]
-        fpr, tpr, _ = roc_curve(y, y_prob, pos_label=i)  # one-to-M policy for binary classification, and you're interested in class i
-
-        roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, lw=2, label='ROC curve of class %d, AUC = %0.2f' % (i, roc_auc))
-        
-    # Plot diagnal
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    
-    
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('ROC curve')
-    plt.legend(loc="lower right")
-    plt.show()
+# 使用决策树进行预测的函数（这里仅提供框架，需要具体实现）
+def predict(tree, x):
+    """在决策树上预测单个样本"""
+    for feature_index, branches in tree.items():
+        value = x[feature_index]
+        if value in branches:
+            subtree = branches[value]
+            if type(subtree) is dict:
+                return predict(subtree, x)
+            else:
+                return subtree
+        else:
+            return None  # 无法处理的值
 
 
 
 
 if __name__ == '__main__':
-    main()
+    # 预测示例
+    x_new = X[0]  # 假设我们使用第一个样本进行预测
+    print(predict(decision_tree, x_new))
