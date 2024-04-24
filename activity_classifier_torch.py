@@ -101,7 +101,7 @@ class TorchModel(nn.Module):
 import heapq
 
 class Node:
-    def __init__(self, layers, units, activation, performance):
+    def __init__(self, layers, units, activation, performance:float=0):
         # hidden layer numbers
         self.layers = layers
         # hidden units numbers
@@ -109,14 +109,14 @@ class Node:
         # nn.Relu ... 
         self.activation:nn.Module = activation
         # avg(f1+auc)
-        self.performance = performance
+        self.performance:float = performance
         # 父节点指针
         self.parent:Node = None
         # 从开始在当前节点的路径上的节点数 (包括当前)
         self.path_node_num: int = None
         
         # cost(start, current)
-        self.cost=None
+        self.cost:float=0
 
     def __lt__(self, other):
         return self.performance < other.performance
@@ -173,7 +173,9 @@ def get_neighbors(node:Node):
     
 
 
-def evaluate_node(node:Node, start:Node, goal:float,train_x:torch.Tensor, train_y:torch.Tensor, test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
+def evaluate_node(node:Node, start:Node, goal:float,
+                  train_x:torch.Tensor, train_y:torch.Tensor, 
+                  test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     # Train and evaluate a neural network with the given hyperparameters
     g_value = cost(start, node, train_x, train_y, test_x, test_y, test_y_label, encoder)
     h_value = heuristic(node, goal)
@@ -188,17 +190,20 @@ def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
          test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     
     model = TorchModel(
-        input_size=251, layers=5, units=10, hidden_activation=nn.Tanh())
+        input_size=train_x.shape[1], layers=5, units=10, hidden_activation=nn.Tanh())
     
     trained_model = train_model(model, train_x, train_y)
     
     # 获得预测值
-    y_pred= trained_model(test_x)
+    test_x=test_x.detach()
+    y_pred:torch.Tensor= trained_model(test_x)
+    y_pred=y_pred.detach() # 2947 x 6
+    y_pred = torch.argmax(y_pred, dim=1).detach()
     # 转为string标签   
     y_pred_label = encoder.inverse_transform(y_pred)
     
     # 计算f1
-    f1 = f1_score(test_y_label, y_pred_label)
+    f1 = f1_score(test_y_label, y_pred_label, average='macro')
     
     # 计算auc
     auc = roc_auc_score(label_binarize(test_y, classes=[0,1,2,3,4,5]), label_binarize(y_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
@@ -208,7 +213,10 @@ def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
     
     # 当前真实代价(cost)和父节点代价做一个平均 ==> 模拟从原点到当前节点的代价
     # 取倒数是因为我们比的是谁的代价更小
-    avg_cost = ((1/node.parent.cost) + node_cost)/2
+    if node.parent is not None:
+        avg_cost = ((1/node.parent.cost) + node_cost)/2
+    else:
+        avg_cost = node_cost
     
     # 节点的最终cost == 节点所在的<start, node>路径上的平均性能
     # 为什么要用倒数， 因为cost比较的是谁的值更小
@@ -315,7 +323,7 @@ def build_dataset()->pd.DataFrame:
     plt.tight_layout()
     plt.show()
     
-    plt.pause(1)
+    plt.pause(0.5)
     
     plt.close()
     
@@ -575,7 +583,7 @@ def fine_tune(model:TorchModel):
     
 def train_model(model:TorchModel, train_x:torch.Tensor, train_y:torch.Tensor):
     # 配置参数
-    epoch_num = 20  # 训练轮数
+    epoch_num = 5  # 训练轮数
     batch_size = 20  # 每次训练样本个数
     train_sample = len(train_x)  # 每轮训练总共训练的样本总数
     input_size = train_x.shape[1]  # 输入向量维度
@@ -753,7 +761,7 @@ if __name__ == '__main__':
     
     # final_model = train_model(model=model,train_x=train_x, train_y=train_y)
     
-    initial_node = Node(layers =5, units=10, activation = nn.ReLU(), performance=None)
+    initial_node = Node(layers =5, units=10, activation = nn.ReLU, performance=0)
     A_star_search(initial_node, train_x, train_y, 
                   test_x, test_y, test_y_label, final_encoder)
 
