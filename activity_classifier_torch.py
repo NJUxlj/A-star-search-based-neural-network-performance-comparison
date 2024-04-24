@@ -556,6 +556,7 @@ def train_model(model:TorchModel, test_x, test_y):
     
     final_encoder: LabelEncoder
     
+    print("==========开始模型训练=============")
     for epoch in range(epoch_num):
         model.train()
         # 本轮训练中，记录所有批次（batch）的平均损失
@@ -590,19 +591,11 @@ def train_model(model:TorchModel, test_x, test_y):
 
 
     
-    # 显示分类完成后，模型的分类性能
-    test_y_pred = model(test_x)
-    print(f'test_y_pred:\n {test_y_pred}')
+    # # 显示分类完成后，模型的分类性能
+    # test_y_pred = model(test_x)
+    # print(f'test_y_pred:\n {test_y_pred}')
     
 
-    
-    
-    
-    
-    
-    
-    
-    
     return model
     
 
