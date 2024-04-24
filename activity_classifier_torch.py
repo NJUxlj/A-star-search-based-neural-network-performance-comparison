@@ -366,16 +366,15 @@ def k_fold_cross_validation(k):
     # 记录每一轮，测试集上的损失
     watch_loss= []
     
-    # 保存原始的参数
+    # 在开始交叉验证之前保存模型的初始参数
     import copy
-    original_state_dict = copy.deepcopy(model.state_dict())
+    initial_state_dict = copy.deepcopy(model.state_dict())
     
     for i in range(k): # k轮交叉验证
-        model.train()
-        # 还原到原始的模型参数
-        model.load_state_dict(copy.deepcopy(original_state_dict))
         
-        
+        # 在每次迭代开始时加载初始参数
+        model.load_state_dict(copy.deepcopy(initial_state_dict))
+            
         X_test = X_dataset[i*(fold_size):(i+1)*fold_size]
         Y_test = Y_dataset[i*(fold_size):(i+1)*fold_size]
         
@@ -414,7 +413,7 @@ def k_fold_cross_validation(k):
 # 执行训练任务
 def main():
     # 配置参数
-    epoch_num = 5  # 训练轮数
+    epoch_num = 20  # 训练轮数
     batch_size = 20  # 每次训练样本个数
     train_sample = 5000  # 每轮训练总共训练的样本总数
     input_size = 561  # 输入向量维度
