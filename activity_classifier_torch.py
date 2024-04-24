@@ -23,7 +23,7 @@ from activity_classifier_sklearn import *
 
 # self-defined neural network class
 class TorchModel(nn.Module):
-    def __init__(self, input_size: int):
+    def __init__(self, input_size: int=251, layers:int=4, units:int=15, hidden_activation:nn.Module=nn.Tanh()):
         ''''
         inputsize: 输入样本的特征数量
         '''
@@ -33,10 +33,22 @@ class TorchModel(nn.Module):
         # input_size 就是每一个样本的特征数量 (假设是20)
         # 假设我们有一个输入矩阵 X(row=n, col = 20), 一个线性层的权重矩阵W(row = 20, col = 6)
         # 线性层的作用就是计算 X*W +b, 其中X*W(row = n, col = 6), b是常数（偏置值）
-        self.linear1 = nn.Linear(input_size, 15) 
-        self.linear2 = nn.Linear(15, 15) 
-        self.linear3 = nn.Linear(15, 15) 
-        self.linear4 = nn.Linear(15, 6) 
+        self.linear_list=nn.ModuleList()
+        
+        self.hidden_activation = hidden_activation
+        if layers<1:
+            linear1 = nn.Linear(input_size, units)
+            self.linear_list.append1(linear1)
+        else:
+            linear1 = nn.Linear(input_size, units) 
+            self.linear_list.append(linear1)
+            
+            for i in range(1,layers-1):
+                linear2 = nn.Linear(units, units)
+                self.linear_list.append(linear2)
+                
+            linear3 = nn.Linear(units, 6) 
+            self.linear_list.append(linear3)
         
         # 线性层输出矩阵的每一行都是一个分类向量，形如 [1.2, 3.4, 5.5 ,0.2, 0.8, 0.9]
         # 这些数乍一看是无规则的，没什么意义， 因此我们要用softmax函数给他过滤一下
@@ -53,17 +65,13 @@ class TorchModel(nn.Module):
         '''
         
         # 得到线性层的输出
-        x = self.linear1(x)
-        x = nn.Tanh()(x)
+        linear_list = self.linear_list
         
-        x = self.linear2(x)
-        x = nn.Tanh()(x)
+        for i, ll in enumerate(linear_list):
+            x = ll(x)
+            if i!=len(linear_list)-1:
+                x =self.hidden_activation(x)
         
-        x = self.linear3(x)
-        x = nn.Tanh()(x)
-        
-        
-        x = self.linear4(x)
         # 放入激活函数得到6个类的概率分布
         # softmax做完以后， 结果会被自动放入one-hot 函数，转为 0-1矩阵
         # 为什么要用one-hot, 因为单纯的概率分布向量看着不是很直观，并且loss不是太好计算
@@ -107,7 +115,7 @@ class Node:
     
     
 
-def A_star_search(initial_node, get_neighbors, evaluate):
+def A_star_search(initial_node:Node):
     '''
     A* 算法， 用来寻找使得神经网络分类性能最高的超参数：线性层的层数， 每层hidden unit的数量， 激活函数的种类
     '''
@@ -115,13 +123,14 @@ def A_star_search(initial_node, get_neighbors, evaluate):
     heapq.heappush(queue, initial_node)
 
     while queue:
-        current_node = heapq.heappop(queue)
+        current_node:Node = heapq.heappop(queue)
         if is_goal(current_node):
+            print(f'A*最优的参数是：layers:{current_node.layers}, hiddenUnits:{current_node.units},activation:{current_node.activation}')
             return current_node
 
         neighbors = get_neighbors(current_node)
         for neighbor in neighbors:
-            neighbor.performance = evaluate_node(neighbor)
+            neighbor.performance = evaluate_node(node = neighbor, start=initial_node, goal = 1.96)
             heapq.heappush(queue, neighbor)
 
     return None
@@ -153,18 +162,37 @@ def get_neighbors(node:Node):
     
 
 
-def evaluate_node(node):
+def evaluate_node(node:Node, start:Node, goal:float):
     # Train and evaluate a neural network with the given hyperparameters
-    pass
+    g_value = cost(start, node)
+    h_value = heuristic(node, goal)
+    f_value = g_value+h_value
+    
+    return f_value
 
-def is_goal(node):
+def heuristic(node:Node, goal:float):
+    return 1/((node.performance-goal)**2+1)
+
+def cost(start:Node, node:Node):
+    model = TorchModel(
+        input_size=251, layers=5, units=10, hidden_activation=nn.Tanh())
+    
+    # # 创建训练集
+    # train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    
+    
+    
+    return 1/((node.performance-start.performance)**2+1)
+
+def is_goal(node:Node):
     # Check if the performance of the node is good enough
     
     '''
     我们这里将f1-score 和 auc的平均值设为性能指标
     '''
-    goal = (0.96)
-    pass
+    goal = (0.96+0.96)/2
+    
+    return node.performance >= goal
 
 
     
@@ -509,7 +537,73 @@ def fine_tune(model:TorchModel):
     '''
     
     
+def train_model(model:TorchModel, test_x, test_y):
+    # 配置参数
+    epoch_num = 20  # 训练轮数
+    batch_size = 20  # 每次训练样本个数
+    train_sample = 5000  # 每轮训练总共训练的样本总数
+    input_size = 561  # 输入向量维度
+    learning_rate = 0.001  # 学习率  
+
+       # parameters: 接收模型参数
+    optim = torch.optim.Adam(params = model.parameters(), lr=learning_rate)
     
+    # 损失日志
+    log = []
+    
+    # 创建训练集
+    # train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    
+    final_encoder: LabelEncoder
+    
+    for epoch in range(epoch_num):
+        model.train()
+        # 本轮训练中，记录所有批次（batch）的平均损失
+        watch_loss= []
+        
+        # 所有的样本可以分成 train_sample//batch_size 个批次 （batch）
+        for i in range(train_sample//batch_size):
+            # 取出当前批次的训练数据
+            x_batch = train_x[i*(batch_size): (i+1)*batch_size]
+            y_batch = train_y[i*(batch_size): (i+1)*batch_size]
+
+            # # 将 DataFrame 转换为 Tensor
+            # x_batch:torch.Tensor = torch.tensor(x_batch.values)
+            # y_batch:torch.Tensor = torch.tensor(y_batch.values)
+            # 隐式调用forward成员函数， 计算损失
+            
+            # print(f'y_batch:\n{y_batch}')
+            # print(len(y_batch))
+            
+            loss = model(x_batch, y_batch)
+            
+            loss.backward()  # 计算梯度
+            optim.step() # 更新参数
+            
+            model.zero_grad() # 梯度归零， 每一个批次只能用该批次的损失函数来计算梯度
+            
+            watch_loss.append(loss.item())   
+        
+        print(f'epoch #{epoch+1}, average loss = {np.mean(watch_loss):.2f}')
+        acc=evaluate(model, test_x, test_y)
+ 
+
+
+    
+    # 显示分类完成后，模型的分类性能
+    test_y_pred = model(test_x)
+    print(f'test_y_pred:\n {test_y_pred}')
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    return model
     
 
 
@@ -620,4 +714,7 @@ if __name__ == '__main__':
     # build_dataset()
     main()
     # k_fold_cross_validation(50)
+    
+    # 创建训练集
+    # train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
     
