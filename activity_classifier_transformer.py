@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
 import matplotlib.pyplot as plt 
@@ -12,7 +13,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix,classification_report
 
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_score, roc_auc_score
 
 import numpy as np
 from typing import Union
@@ -50,6 +51,8 @@ class NewsDataset(Dataset):
         self.labels = labels
         # 将文本转化为模型能够理解的格式， 比如tokens
         self.tokenizer = tokenizer
+        self.encoder = LabelEncoder().fit(self.labels)
+        self.labels = self.encoder.transform(self.labels)
 
     def __len__(self):
         '''
@@ -65,6 +68,7 @@ class NewsDataset(Dataset):
         '''
         text = self.texts[idx]
         label = self.labels[idx]
+        
         # 将文本分割为令牌
         # 添加特殊的开始和结束令牌
         encoding = self.tokenizer.encode_plus(
@@ -135,7 +139,7 @@ def test_bert():
     
     
 
-def main():
+def main()-> nn.Module:
     
     # 加载数据集
     X_train_combine, Y_train, Y_train_label, X_test_combine, Y_test, Y_test_label, le = build_dataset()
@@ -156,6 +160,8 @@ def main():
     # shuffle means randomly pick 100 samples as a batch
     train_loader = DataLoader(train_dataset, batch_size=100, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=100)
+    
+    # train_loader['input_ids']
 
     # 训练模型
     
@@ -164,12 +170,14 @@ def main():
     # 将模型的所有参数和缓冲区移动到指定的设备上
     model = model.to(device)
     
+    
+    
     # why use AdamW:
     # 1. AdamW is a variation of Adam, it uses L2 regularization to utilize "weight decay" to prevent overfitting
     # 2. Bert has large quantity of parameters and very easy to overfitting
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
     watch_loss = []
-    for epoch in range(10):  # 训练3个周期
+    for epoch in range(5):  # 训练3个周期
         model.train()
         for batch in train_loader:
             # 创建了一个字典推导式， k是键， v是k对应的张量， v.to(device)将张量移动到设备上
@@ -185,10 +193,10 @@ def main():
             
         watch_loss.append(loss.item())
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
-        plt.figure(10,8)
-        plt.plot([x for x in watch_loss], label = 'Training Loss')
-        plt.legend()
-        plt.show()
+    plt.figure(figsize=(10, 8))
+    plt.plot([i+1 for i in range(len(watch_loss))],[x for x in watch_loss], lw=2, color = 'red', label = 'Training Loss')
+    plt.legend()
+    plt.show()
     
     
     # 评估模型
@@ -201,13 +209,27 @@ def main():
             logits = outputs.logits
             predictions.extend(torch.argmax(logits, dim=-1).tolist())
 
+    # prediction is a (n x 1) matrix ==> a class-number vector
     accuracy = accuracy_score(Y_test_label, predictions)
+    precision = precision_score(Y_test_label, predictions)
+    recall = recall_score(Y_test_label, predictions)
+    f1 = f1_score(Y_test_label, predictions)
+    auc = roc_auc_score(Y_test_label, predictions)
+    
     print(f"Test Accuracy: {accuracy}")
+    print(f"Test precision: {precision}")
+    print(f"Test recall: {recall}")
+    print(f"Test f1: {f1}")
+    print(f"Test auc: {auc}")
     
     
     
     
-    print()
+    # 如何使用bert 模型进行预测？
+    # y= model(x) 即可
+    
+    
+    return model, [accuracy, precision, recall, f1, auc]
 
 
 
@@ -306,8 +328,8 @@ def build_dataset()->Union[np.ndarray,torch.FloatTensor, torch.LongTensor]:
 
 
 def print_transformer():
-    main()
-
+    model, model_metrics_list = main()
+    return model, model_metrics_list
 
 
 

@@ -123,7 +123,7 @@ class Node:
     
     
 
-def A_star_search(initial_node:Node):
+def A_star_search(initial_node:Node, train_x:torch.Tensor, train_y:torch.Tensor, test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     '''
     A* 算法， 用来寻找使得神经网络分类性能最高的超参数：线性层的层数， 每层hidden unit的数量， 激活函数的种类
     '''
@@ -138,7 +138,8 @@ def A_star_search(initial_node:Node):
 
         neighbors = get_neighbors(current_node)
         for neighbor in neighbors:
-            neighbor.performance = evaluate_node(node = neighbor, start=initial_node, goal = 1.96)
+            neighbor.performance = evaluate_node(node = neighbor, start=initial_node, goal = 1.96, 
+                                                 train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y, test_y_label=test_y_label, encoder=encoder)
             heapq.heappush(queue, neighbor)
 
     return None
@@ -205,14 +206,15 @@ def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
     # 当前模型的性能
     node_cost = (f1+auc)/2
     
-    # 当前性能和历史性能做一个平均
-    avg_cost = ((1/node.parent.performance) + node_cost)/2
+    # 当前真实代价(cost)和父节点代价做一个平均 ==> 模拟从原点到当前节点的代价
+    # 取倒数是因为我们比的是谁的代价更小
+    avg_cost = ((1/node.parent.cost) + node_cost)/2
     
     # 节点的最终cost == 节点所在的<start, node>路径上的平均性能
     # 为什么要用倒数， 因为cost比较的是谁的值更小
-    node.performance = 1/avg_cost
+    node.cost = 1/avg_cost
     
-    return node.performance
+    return node.cost
 
 def is_goal(node:Node):
     # Check if the performance of the node is good enough
@@ -746,7 +748,13 @@ if __name__ == '__main__':
     train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
     
     
-    model = TorchModel(input_size=561,layers=4, units=10, hidden_activation=nn.ReLU())
+    # model = TorchModel(input_size=561,layers=4, units=10, hidden_activation=nn.ReLU())
     
     
-    final_model = train_model(model=model,train_x=train_x, train_y=train_y)
+    # final_model = train_model(model=model,train_x=train_x, train_y=train_y)
+    
+    initial_node = Node(layers =5, units=10, activation = nn.ReLU(), performance=None)
+    A_star_search(initial_node, train_x, train_y, 
+                  test_x, test_y, test_y_label, final_encoder)
+
+    

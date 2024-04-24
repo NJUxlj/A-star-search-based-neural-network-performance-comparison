@@ -91,7 +91,7 @@ def build_dataset()->pd.DataFrame:
 
 
 
-def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel]):
+def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list]):
 
     '''
     比较3中不同模型的分类性能
@@ -134,6 +134,9 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel]):
     model3_roc_auc = roc_auc_score(label_binarize(Y_test, classes=[0,1,2,3,4,5]), label_binarize(model3_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
     
     
+    
+    # Bert的性能数据已经由Bert所在的文件返回
+    
     # 有其他模型， 往下继续加就行
 
     # 创建条形图
@@ -141,6 +144,7 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel]):
     model1_scores = [model1_accuracy, model1_precision, model1_recall, model1_f1, model1_roc_auc]
     model2_scores = [model2_accuracy, model2_precision, model2_recall, model2_f1, model2_roc_auc]
     model3_scores = [model3_accuracy, model3_precision, model3_recall, model3_f1, model3_roc_auc]
+    model4_scores= model4_metrics_list
     
     
     x = np.arange(len(metrics))  # the label locations
@@ -150,9 +154,11 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel]):
     # ax: sub-plot
     fig, ax = plt.subplots()
     # 条形子图
-    rects1 = ax.bar(x + 1*width/3, model1_scores, width, label='TorchModel')
-    rects2 = ax.bar(x + 2*width/3, model2_scores, width, label='SVMModel')
-    rects3 = ax.bar(x + 3*width/3, model3_scores, width, label='RandomForestModel')
+    rects1 = ax.bar(x + 1*width/4, model1_scores, width, label='TorchModel')
+    rects2 = ax.bar(x + 2*width/4, model2_scores, width, label='SVMModel')
+    rects3 = ax.bar(x + 3*width/4, model3_scores, width, label='RandomForestModel')
+    rects3 = ax.bar(x + 4*width/4, model4_scores, width, label='Bert')
+    
     
     
     # Add some text for labels, title and custom x-axis tick labels, etc.
@@ -193,5 +199,8 @@ if __name__ == '__main__':
     model3 =print_randomForestSklearn()
     
     
+    model4, model4_metrics_list = print_transformer()
     
-    compare_models(model1 = model1, model2 = model2, model3 = model3)
+    
+    
+    compare_models(model1 = model1, model2 = model2, model3 = model3, model4 = model4, model4_metrics_list=model4_metrics_list)
