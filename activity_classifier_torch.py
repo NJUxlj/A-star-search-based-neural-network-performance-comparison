@@ -11,10 +11,11 @@ import typing
 from sklearn.utils import shuffle
 # 导入标签编码器
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import label_binarize
 # 导入混淆矩阵
-from sklearn.metrics import confusion_matrix,classification_report
+from sklearn.metrics import confusion_matrix,classification_report, f1_score
 
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, roc_auc_score
 
 import matplotlib.pyplot as plt
 
@@ -23,7 +24,7 @@ from activity_classifier_sklearn import *
 
 # self-defined neural network class
 class TorchModel(nn.Module):
-    def __init__(self, input_size: int=251, layers:int=4, units:int=15, hidden_activation:nn.Module=nn.Tanh()):
+    def __init__(self, input_size: int=561, layers:int=4, units:int=15, hidden_activation:nn.Module=nn.Tanh()):
         ''''
         inputsize: 输入样本的特征数量
         '''
@@ -57,7 +58,7 @@ class TorchModel(nn.Module):
         self.loss = nn.CrossEntropyLoss() # 交叉熵损失函数
         
     
-    def forward(self, x, y:torch.Tensor=None):
+    def forward(self, x:torch.Tensor, y:torch.Tensor=None):
         '''
         x: 我们输入的样本矩阵
         y: 样本的真实标签， 如果y给出了，我们需要返回loss， 如果
@@ -94,7 +95,7 @@ class TorchModel(nn.Module):
             return y_pred
     
     
-    
+ # ================================ 新加代码: A* search NN's optimal hyper-params =========================   
 
 # 优先队列
 import heapq
@@ -109,6 +110,13 @@ class Node:
         self.activation:nn.Module = activation
         # avg(f1+auc)
         self.performance = performance
+        # 父节点指针
+        self.parent:Node = None
+        # 从开始在当前节点的路径上的节点数 (包括当前)
+        self.path_node_num: int = None
+        
+        # cost(start, current)
+        self.cost=None
 
     def __lt__(self, other):
         return self.performance < other.performance
@@ -134,6 +142,8 @@ def A_star_search(initial_node:Node):
             heapq.heappush(queue, neighbor)
 
     return None
+
+
 
 def get_neighbors(node:Node):
     # Generate neighbors by changing one hyperparameter at a time
@@ -162,27 +172,47 @@ def get_neighbors(node:Node):
     
 
 
-def evaluate_node(node:Node, start:Node, goal:float):
+def evaluate_node(node:Node, start:Node, goal:float,train_x:torch.Tensor, train_y:torch.Tensor, test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     # Train and evaluate a neural network with the given hyperparameters
-    g_value = cost(start, node)
+    g_value = cost(start, node, train_x, train_y, test_x, test_y, test_y_label, encoder)
     h_value = heuristic(node, goal)
-    f_value = g_value+h_value
+    f_value = g_value + h_value
     
     return f_value
 
 def heuristic(node:Node, goal:float):
-    return 1/((node.performance-goal)**2+1)
+    return 1/(node.performance-goal)
 
-def cost(start:Node, node:Node):
+def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor, 
+         test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
+    
     model = TorchModel(
         input_size=251, layers=5, units=10, hidden_activation=nn.Tanh())
     
-    # # 创建训练集
-    # train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    trained_model = train_model(model, train_x, train_y)
     
+    # 获得预测值
+    y_pred= trained_model(test_x)
+    # 转为string标签   
+    y_pred_label = encoder.inverse_transform(y_pred)
     
+    # 计算f1
+    f1 = f1_score(test_y_label, y_pred_label)
     
-    return 1/((node.performance-start.performance)**2+1)
+    # 计算auc
+    auc = roc_auc_score(label_binarize(test_y, classes=[0,1,2,3,4,5]), label_binarize(y_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
+
+    # 当前模型的性能
+    node_cost = (f1+auc)/2
+    
+    # 当前性能和历史性能做一个平均
+    avg_cost = ((1/node.parent.performance) + node_cost)/2
+    
+    # 节点的最终cost == 节点所在的<start, node>路径上的平均性能
+    # 为什么要用倒数， 因为cost比较的是谁的值更小
+    node.performance = 1/avg_cost
+    
+    return node.performance
 
 def is_goal(node:Node):
     # Check if the performance of the node is good enough
@@ -282,6 +312,10 @@ def build_dataset()->pd.DataFrame:
     plt.axis('equal')
     plt.tight_layout()
     plt.show()
+    
+    plt.pause(1)
+    
+    plt.close()
     
     
     print(f"X_train.shape：{X_train.shape}")
@@ -537,15 +571,15 @@ def fine_tune(model:TorchModel):
     '''
     
     
-def train_model(model:TorchModel, test_x, test_y):
+def train_model(model:TorchModel, train_x:torch.Tensor, train_y:torch.Tensor):
     # 配置参数
     epoch_num = 20  # 训练轮数
     batch_size = 20  # 每次训练样本个数
-    train_sample = 5000  # 每轮训练总共训练的样本总数
-    input_size = 561  # 输入向量维度
+    train_sample = len(train_x)  # 每轮训练总共训练的样本总数
+    input_size = train_x.shape[1]  # 输入向量维度
     learning_rate = 0.001  # 学习率  
 
-       # parameters: 接收模型参数
+    # parameters: 接收模型参数
     optim = torch.optim.Adam(params = model.parameters(), lr=learning_rate)
     
     # 损失日志
@@ -586,7 +620,7 @@ def train_model(model:TorchModel, test_x, test_y):
             watch_loss.append(loss.item())   
         
         print(f'epoch #{epoch+1}, average loss = {np.mean(watch_loss):.2f}')
-        acc=evaluate(model, test_x, test_y)
+        # accuracy=evaluate(model, test_x, test_y)
  
 
 
@@ -705,9 +739,14 @@ def print_torch():
 
 if __name__ == '__main__':
     # build_dataset()
-    main()
+    # main()
     # k_fold_cross_validation(50)
     
     # 创建训练集
-    # train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
     
+    
+    model = TorchModel(input_size=561,layers=4, units=10, hidden_activation=nn.ReLU())
+    
+    
+    final_model = train_model(model=model,train_x=train_x, train_y=train_y)
