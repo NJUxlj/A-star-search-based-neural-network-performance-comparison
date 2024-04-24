@@ -267,10 +267,12 @@ def main():
     return final_model
 
 def print_svm():
+    
+    print("\n===================== SVM ==========================")
     final_model = main()
     return final_model
 
-
+    
 
 
 

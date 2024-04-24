@@ -91,7 +91,8 @@ def build_dataset()->pd.DataFrame:
 
 
 
-def compare_models(model1:TorchModel, model2:SVMModel):
+# def compare_models(model1:TorchModel, model2:SVMModel):
+def compare_models(**kwargs:Union[TorchModel,SVMModel,RandomForestModel]):
 
     '''
     比较3中不同模型的分类性能
@@ -125,12 +126,22 @@ def compare_models(model1:TorchModel, model2:SVMModel):
     model2_roc_auc = roc_auc_score(label_binarize(Y_test, classes=[0,1,2,3,4,5]), label_binarize(model2_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
     
     
+    # 使用RandomForest进行预测
+    model3_pred = model3.predict(X_test_scaled)
+    model3_accuracy = accuracy_score(Y_test, model3_pred)
+    model3_precision = precision_score(Y_test, model3_pred, average='macro')
+    model3_recall = recall_score(Y_test, model3_pred, average='macro')
+    model3_f1 = f1_score(Y_test, model3_pred, average='macro')
+    model3_roc_auc = roc_auc_score(label_binarize(Y_test, classes=[0,1,2,3,4,5]), label_binarize(model3_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
+    
     # 有其他模型， 往下继续加就行
 
     # 创建条形图
     metrics = ['Accuracy', 'Precision', 'Recall', 'F1-score', 'ROC AUC']
     model1_scores = [model1_accuracy, model1_precision, model1_recall, model1_f1, model1_roc_auc]
     model2_scores = [model2_accuracy, model2_precision, model2_recall, model2_f1, model2_roc_auc]
+    model3_scores = [model3_accuracy, model3_precision, model3_recall, model3_f1, model3_roc_auc]
+    
     
     x = np.arange(len(metrics))  # the label locations
     width = 0.35  # the width of the bars
@@ -139,8 +150,10 @@ def compare_models(model1:TorchModel, model2:SVMModel):
     # ax: sub-plot
     fig, ax = plt.subplots()
     # 条形子图
-    rects1 = ax.bar(x - width/2, model1_scores, width, label='TorchModel')
-    rects2 = ax.bar(x + width/2, model2_scores, width, label='SVMModel')
+    rects1 = ax.bar(x + 1*width/3, model1_scores, width, label='TorchModel')
+    rects2 = ax.bar(x + 2*width/3, model2_scores, width, label='SVMModel')
+    rects2 = ax.bar(x + 3*width/3, model3_scores, width, label='RandomForestModel')
+    
     
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Performance Scores')
@@ -177,8 +190,8 @@ if __name__ == '__main__':
     
     
     
-    print_randomForestSklearn()
+    model3=print_randomForestSklearn()
     
     
     
-    compare_models(model1, model2)
+    compare_models(model1 =model1, model2 = model2, model3 = model3)
