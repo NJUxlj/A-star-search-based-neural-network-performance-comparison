@@ -19,6 +19,11 @@ from sklearn.metrics import roc_curve, auc
 import numpy as np
 import pandas as pd
 
+
+'''
+这整个文件都是周三pre完后加的
+'''
+
 def calculate_entropy(y):
     """
     计算给定标签的熵

@@ -172,8 +172,9 @@ def get_neighbors(node:Node):
     
     return neighbors
     
-
-
+'''
+以下这段是周三pre完后加的
+'''
 def evaluate_node(node:Node, start:Node, goal:float,
                   train_x:torch.Tensor, train_y:torch.Tensor, 
                   test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
@@ -194,6 +195,9 @@ def heuristic(node:Node, goal:float):
     # 取当前节点性能与目标节点性能平均的倒数
     return 1/((1/node.performance+goal)/2)
 
+'''
+以下这段是周三pre完后加的
+'''
 def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor, 
          test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     
@@ -595,7 +599,9 @@ def k_fold_cross_validation(k):
 
 
 
-
+'''
+以下这段是周三pre完后加的
+'''
 def fine_tune():
     '''
     运行A*算法， 微调模型的超参数 （找到最佳的NN参数组合）

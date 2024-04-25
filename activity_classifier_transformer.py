@@ -210,6 +210,10 @@ def main()-> nn.Module:
             outputs = model(**batch)
             logits = outputs.logits
             predictions.extend(torch.argmax(logits, dim=-1).tolist())
+    
+    '''
+    以下这段是周三pre完后加的
+    '''
 
     # prediction is a (n x 1) matrix ==> a class-number vector
     accuracy = accuracy_score(Y_test_label, predictions)
