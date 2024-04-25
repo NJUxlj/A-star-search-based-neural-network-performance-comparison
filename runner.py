@@ -16,7 +16,18 @@ import typing
 from sklearn.metrics import classification_report, roc_curve, roc_auc_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import label_binarize
 
+'''
 
+=====================      注意事项 ！！！！！     ======================================================================
+
+            程序运行期间， 会一个接一个弹出很多的matplotlib图表，
+            
+            你必须把这些图表手动关闭， 程序才能继续运行 ！！！！
+            
+            
+            #################################################################################################
+
+'''
 
 def build_dataset()->pd.DataFrame:
     
@@ -167,8 +178,20 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list])
     # model4_scores= model4_metrics_list
     
     # bert模型完成一轮预测需要将近3小时， 因此我们选择直接将metrics复制进去， 如果你感兴趣，可以直接前往 “activity_classifier_transformer.py” 单独运行
-    model4_scores = [0.71, 0.76, 0.71, 0.73, 0.71]
+    model4_scores = [0.51, 0.65, 0.53, 0.58, 0.61]
     model5_scores = [model5_accuracy, model5_precision, model5_recall, model5_f1, model5_roc_auc]
+    
+    
+    
+    model_metrics_list = []
+    model_metrics_list.append(model1_scores)
+    model_metrics_list.append(model2_scores)
+    model_metrics_list.append(model3_scores)
+    model_metrics_list.append(model4_scores)
+    model_metrics_list.append(model5_scores)
+    
+    print(f'model_metrics_list= \n{model_metrics_list}')
+
     
     
     x = np.arange(len(metrics))  # the label locations
@@ -191,6 +214,7 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list])
     ax.set_ylabel('Performance Scores')
     ax.set_title('Classification Performance between Models')
     ax.set_xticks(x)
+    ax.set_yticks(np.arange(0, 1.1, 0.1))
     ax.set_xticklabels(metrics)
     ax.legend()
 

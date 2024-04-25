@@ -134,7 +134,7 @@ def A_star_search(initial_node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
         current_node:Node = heapq.heappop(queue)
         if is_goal(current_node):
             print(f'A*最优的参数是：layers:{current_node.layers},  hiddenUnits:{current_node.units},  activation:{current_node.activation}\n')
-            print(f'参数最优时的performance (f1 + auc + pre + recall + acc)/5 = {1/current_node.performance}')
+            print(f'参数最优时的performance (f1+auc)/2 = {1/current_node.performance}')
             return current_node
 
         neighbors = get_neighbors(current_node)
@@ -232,8 +232,8 @@ def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
 
     print(f'当前f1 = {f1}, 当前auc = {auc}, 当前precision = {precision}, 当前recall = {recall}, 当前accuracy = {accuracy}')
     
-    # 当前模型的性能
-    node_cost = (f1 + auc + accuracy + precision + recall)/5
+    # 当前模型的性能 (为了缩短优化时间，我们只比较两项关键指标的均值)
+    node_cost = (f1+auc)/2
     
     # 当前真实代价(cost)和父节点代价做一个平均 ==> 模拟从原点到当前节点的代价
     # 取倒数是因为我们比的是谁的代价更小
