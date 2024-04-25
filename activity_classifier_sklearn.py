@@ -194,6 +194,7 @@ def get_roc(test_y: np.ndarray, test_y_scores:np.ndarray):
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
 
+    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
 

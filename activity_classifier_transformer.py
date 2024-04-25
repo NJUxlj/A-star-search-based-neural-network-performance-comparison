@@ -177,7 +177,7 @@ def main()-> nn.Module:
     # 2. Bert has large quantity of parameters and very easy to overfitting
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
     watch_loss = []
-    for epoch in range(5):  # 训练3个周期
+    for epoch in range(3):  # 训练3个周期
         model.train()
         for batch in train_loader:
             # 创建了一个字典推导式， k是键， v是k对应的张量， v.to(device)将张量移动到设备上
@@ -193,6 +193,8 @@ def main()-> nn.Module:
             
         watch_loss.append(loss.item())
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+        
+    plt.ion()
     plt.figure(figsize=(10, 8))
     plt.plot([i+1 for i in range(len(watch_loss))],[x for x in watch_loss], lw=2, color = 'red', label = 'Training Loss')
     plt.legend()

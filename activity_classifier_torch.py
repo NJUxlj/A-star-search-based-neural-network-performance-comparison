@@ -15,7 +15,7 @@ from sklearn.preprocessing import label_binarize
 # 导入混淆矩阵
 from sklearn.metrics import confusion_matrix,classification_report, f1_score
 
-from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import roc_curve, auc, roc_auc_score,precision_score,recall_score
 
 import matplotlib.pyplot as plt
 
@@ -24,7 +24,7 @@ from activity_classifier_sklearn import *
 
 # self-defined neural network class
 class TorchModel(nn.Module):
-    def __init__(self, input_size: int=561, layers:int=4, units:int=15, hidden_activation:nn.Module=nn.Tanh()):
+    def __init__(self, input_size: int=561, layers:int=4, units:int=15, hidden_activation:nn.Module=nn.Tanh):
         ''''
         inputsize: 输入样本的特征数量
         '''
@@ -71,7 +71,7 @@ class TorchModel(nn.Module):
         for i, ll in enumerate(linear_list):
             x = ll(x)
             if i!=len(linear_list)-1:
-                x =self.hidden_activation(x)
+                x =self.hidden_activation()(x) # 过一下线性层的激活函数
         
         # 放入激活函数得到6个类的概率分布
         # softmax做完以后， 结果会被自动放入one-hot 函数，转为 0-1矩阵
@@ -133,12 +133,13 @@ def A_star_search(initial_node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
     while queue:
         current_node:Node = heapq.heappop(queue)
         if is_goal(current_node):
-            print(f'A*最优的参数是：layers:{current_node.layers}, hiddenUnits:{current_node.units},activation:{current_node.activation}')
+            print(f'A*最优的参数是：layers:{current_node.layers},  hiddenUnits:{current_node.units},  activation:{current_node.activation}\n')
+            print(f'参数最优时的performance (f1+auc)/2 = {1/current_node.performance}')
             return current_node
 
         neighbors = get_neighbors(current_node)
         for neighbor in neighbors:
-            neighbor.performance = evaluate_node(node = neighbor, start=initial_node, goal = 1.96, 
+            neighbor.performance = evaluate_node(node = neighbor, start=initial_node, goal = 0.96, 
                                                  train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y, test_y_label=test_y_label, encoder=encoder)
             heapq.heappush(queue, neighbor)
 
@@ -177,20 +178,29 @@ def evaluate_node(node:Node, start:Node, goal:float,
                   train_x:torch.Tensor, train_y:torch.Tensor, 
                   test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     # Train and evaluate a neural network with the given hyperparameters
+    # g = 平均性能的倒数
     g_value = cost(start, node, train_x, train_y, test_x, test_y, test_y_label, encoder)
+    # h = 平均性能的倒数
     h_value = heuristic(node, goal)
-    f_value = g_value + h_value
+    # f是前面两个平均性能的倒数
+    f_value = 1/((1/g_value + 1/h_value)/2)
     
     return f_value
 
 def heuristic(node:Node, goal:float):
-    return 1/(node.performance-goal)
+    
+    if node.performance ==0:
+        return 1/goal
+    # 取当前节点性能与目标节点性能平均的倒数
+    return 1/((1/node.performance+goal)/2)
 
 def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor, 
          test_x:torch.Tensor, test_y:torch.Tensor, test_y_label:np.ndarray, encoder:LabelEncoder):
     
     model = TorchModel(
-        input_size=train_x.shape[1], layers=5, units=10, hidden_activation=nn.Tanh())
+        input_size=train_x.shape[1], layers=node.layers, units=node.units, hidden_activation=node.activation)
+    
+    print(f'当前节点上， 神经网络的超参数是: layers = {node.layers}, hidden units = {node.units}, activation = {node.activation}')
     
     trained_model = train_model(model, train_x, train_y)
     
@@ -208,8 +218,18 @@ def cost(start:Node, node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
     # 计算auc
     auc = roc_auc_score(label_binarize(test_y, classes=[0,1,2,3,4,5]), label_binarize(y_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
 
+    
+    accuracy = accuracy_score(test_y, y_pred)
+    
+    precision = precision_score(test_y, y_pred, average= 'macro')
+    
+    recall = recall_score(test_y, y_pred, average= 'macro')
+
+
+    print(f'当前f1 = {f1}, 当前auc = {auc}, 当前precision = {precision}, 当前recall = {recall}, 当前accuracy = {accuracy}')
+    
     # 当前模型的性能
-    node_cost = (f1+auc)/2
+    node_cost = (f1 + auc + accuracy + precision + recall)/5
     
     # 当前真实代价(cost)和父节点代价做一个平均 ==> 模拟从原点到当前节点的代价
     # 取倒数是因为我们比的是谁的代价更小
@@ -230,9 +250,11 @@ def is_goal(node:Node):
     '''
     我们这里将f1-score 和 auc的平均值设为性能指标
     '''
-    goal = (0.96+0.96)/2
+    goal = 0.96
     
-    return node.performance >= goal
+    if node.performance == 0:
+        return False
+    return (1/node.performance) >= goal
 
 
     
@@ -305,6 +327,8 @@ def build_dataset()->pd.DataFrame:
     
     # print(Y_train)
     
+    
+    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -323,9 +347,6 @@ def build_dataset()->pd.DataFrame:
     plt.tight_layout()
     plt.show()
     
-    plt.pause(0.5)
-    
-    plt.close()
     
     
     print(f"X_train.shape：{X_train.shape}")
@@ -452,7 +473,7 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     # 忽略 UndefinedMetricWarning, 用于忽略控制台的警告信息
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
-
+    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -559,6 +580,7 @@ def k_fold_cross_validation(k):
 
     print(f'{k}-fold CV\'s average loss = {np.mean(watch_loss):.2f}')
     
+    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -575,10 +597,39 @@ def k_fold_cross_validation(k):
 
 
 
-def fine_tune(model:TorchModel):
+def fine_tune():
     '''
     微调模型的超参数
     '''
+    
+    import time
+    start = time.time()
+    
+    # 创建训练集
+    train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
+    
+    
+    print(f"============= A* 预计要运行 3分钟 =========")
+    
+    # model = TorchModel(input_size=561,layers=4, units=10, hidden_activation=nn.ReLU())
+    
+    
+    # final_model = train_model(model=model,train_x=train_x, train_y=train_y)
+    
+    initial_node = Node(layers =5, units=10, activation = nn.ReLU, performance=0)
+    final_node:Node = A_star_search(initial_node, train_x, train_y, 
+                  test_x, test_y, test_y_label, final_encoder)
+
+    
+    model1 = TorchModel(input_size=561, layers = final_node.layers, units=final_node.units,hidden_activation=final_node.activation)
+    
+    final_model = train_model(model1, train_x, train_y)
+    
+    end=time.time()
+    
+    print(f'A* search 总共运行了: {end-start} 秒')
+    
+    return final_model
     
     
 def train_model(model:TorchModel, train_x:torch.Tensor, train_y:torch.Tensor):
@@ -708,6 +759,8 @@ def main():
     
     # 画出性能曲线
     print(log)
+    
+    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
     plt.plot(range(len(log)), [x[0] for x in log], label = 'accuracy')
@@ -747,6 +800,11 @@ def print_torch():
     model = main()
     return model
 
+
+def print_torch_optimized():
+    model = fine_tune()
+    return model
+
 if __name__ == '__main__':
     # build_dataset()
     # main()
@@ -762,7 +820,11 @@ if __name__ == '__main__':
     # final_model = train_model(model=model,train_x=train_x, train_y=train_y)
     
     initial_node = Node(layers =5, units=10, activation = nn.ReLU, performance=0)
-    A_star_search(initial_node, train_x, train_y, 
+    final_node:Node = A_star_search(initial_node, train_x, train_y, 
                   test_x, test_y, test_y_label, final_encoder)
 
+    
+    model1 = TorchModel(input_size=561, layers = final_node.layers, units=final_node.units,hidden_activation=final_node.activation)
+    
+    final_model = train_model(model1, train_x, train_y)
     

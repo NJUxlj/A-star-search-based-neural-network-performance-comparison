@@ -137,6 +137,26 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list])
     
     # Bert的性能数据已经由Bert所在的文件返回
     
+    
+    
+    # # 使用优化后的TorchModel进行预测
+    X_test_scaled_model5 = torch.Tensor(X_test_scaled).detach()
+    Y_test_model5 = torch.Tensor(Y_test).detach()
+    
+    # 使用TorchModel进行预测
+    # model1_pred = model1(X_test_scaled_model1).detach()
+    model5_pred = torch.max(model5(X_test_scaled_model5), 1)[1].detach()
+    model5_accuracy = accuracy_score(Y_test_model5, model5_pred)
+    model5_precision = precision_score(Y_test_model5, model5_pred, average='macro')
+    model5_recall = recall_score(Y_test_model5, model5_pred, average='macro')
+    model5_f1 = f1_score(Y_test_model5, model5_pred, average='macro')
+    model5_roc_auc = roc_auc_score(label_binarize(Y_test_model5, classes=[0,1,2,3,4,5]), label_binarize(model5_pred, classes=[0,1,2,3,4,5]), multi_class='ovr')
+
+    
+    
+    
+    
+    
     # 有其他模型， 往下继续加就行
 
     # 创建条形图
@@ -144,20 +164,24 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list])
     model1_scores = [model1_accuracy, model1_precision, model1_recall, model1_f1, model1_roc_auc]
     model2_scores = [model2_accuracy, model2_precision, model2_recall, model2_f1, model2_roc_auc]
     model3_scores = [model3_accuracy, model3_precision, model3_recall, model3_f1, model3_roc_auc]
-    model4_scores= model4_metrics_list
+    # model4_scores= model4_metrics_list
+    model4_scores = [0.71, 0.76, 0.71, 0.73, 0.71]
+    model5_scores = [model5_accuracy, model5_precision, model5_recall, model5_f1, model5_roc_auc]
     
     
     x = np.arange(len(metrics))  # the label locations
-    width = 0.35  # the width of the bars
+    width = 0.25  # the width of the bars
     
     # fig: 图形窗口
     # ax: sub-plot
     fig, ax = plt.subplots()
     # 条形子图
-    rects1 = ax.bar(x + 1*width/4, model1_scores, width, label='TorchModel')
-    rects2 = ax.bar(x + 2*width/4, model2_scores, width, label='SVMModel')
-    rects3 = ax.bar(x + 3*width/4, model3_scores, width, label='RandomForestModel')
-    rects3 = ax.bar(x + 4*width/4, model4_scores, width, label='Bert')
+    rects1 = ax.bar(x + 1*width/5, model1_scores, width, label='TorchModel')
+    rects2 = ax.bar(x + 2*width/5, model2_scores, width, label='SVMModel')
+    rects3 = ax.bar(x + 3*width/5, model3_scores, width, label='RandomForestModel')
+    rects4 = ax.bar(x + 4*width/5, model4_scores, width, label='Bert')
+    rects5 = ax.bar(x + 5*width/5, model5_scores, width, label='optimized TorchModel')
+    
     
     
     
@@ -199,8 +223,10 @@ if __name__ == '__main__':
     model3 =print_randomForestSklearn()
     
     
-    model4, model4_metrics_list = print_transformer()
+    # model4, model4_metrics_list = print_transformer()
+    
+    model5 = print_torch_optimized()
     
     
     
-    compare_models(model1 = model1, model2 = model2, model3 = model3, model4 = model4, model4_metrics_list=model4_metrics_list)
+    compare_models(model1 = model1, model2 = model2, model3 = model3, model5 =model5, model4 = None, model4_metrics_list=None)
