@@ -134,7 +134,7 @@ def A_star_search(initial_node:Node, train_x:torch.Tensor, train_y:torch.Tensor,
         current_node:Node = heapq.heappop(queue)
         if is_goal(current_node):
             print(f'A*最优的参数是：layers:{current_node.layers},  hiddenUnits:{current_node.units},  activation:{current_node.activation}\n')
-            print(f'参数最优时的performance (f1+auc)/2 = {1/current_node.performance}')
+            print(f'参数最优时的performance (f1 + auc + pre + recall + acc)/5 = {1/current_node.performance}')
             return current_node
 
         neighbors = get_neighbors(current_node)
@@ -328,7 +328,6 @@ def build_dataset()->pd.DataFrame:
     # print(Y_train)
     
     
-    plt.ion()
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -473,7 +472,7 @@ def get_roc(test_y:torch.Tensor,test_y_pred:torch.Tensor):
     # 忽略 UndefinedMetricWarning, 用于忽略控制台的警告信息
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
-    plt.ion()
+
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -580,7 +579,7 @@ def k_fold_cross_validation(k):
 
     print(f'{k}-fold CV\'s average loss = {np.mean(watch_loss):.2f}')
     
-    plt.ion()
+
     # 准备画布
     plt.figure(figsize=(10, 8))
     
@@ -599,7 +598,7 @@ def k_fold_cross_validation(k):
 
 def fine_tune():
     '''
-    微调模型的超参数
+    运行A*算法， 微调模型的超参数 （找到最佳的NN参数组合）
     '''
     
     import time
@@ -609,7 +608,7 @@ def fine_tune():
     train_x, train_y, test_x, test_y, test_y_label, final_encoder = build_dataset()
     
     
-    print(f"============= A* 预计要运行 3分钟 =========")
+    print(f"============= A* 预计要运行 10分钟 =========")
     
     # model = TorchModel(input_size=561,layers=4, units=10, hidden_activation=nn.ReLU())
     
@@ -760,7 +759,7 @@ def main():
     # 画出性能曲线
     print(log)
     
-    plt.ion()
+
     # 准备画布
     plt.figure(figsize=(10, 8))
     plt.plot(range(len(log)), [x[0] for x in log], label = 'accuracy')

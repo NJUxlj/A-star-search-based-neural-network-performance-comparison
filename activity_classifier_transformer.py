@@ -194,7 +194,7 @@ def main()-> nn.Module:
         watch_loss.append(loss.item())
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
         
-    plt.ion()
+
     plt.figure(figsize=(10, 8))
     plt.plot([i+1 for i in range(len(watch_loss))],[x for x in watch_loss], lw=2, color = 'red', label = 'Training Loss')
     plt.legend()

@@ -165,6 +165,8 @@ def compare_models(**kwargs:Union[TorchModel, SVMModel, RandomForestModel,list])
     model2_scores = [model2_accuracy, model2_precision, model2_recall, model2_f1, model2_roc_auc]
     model3_scores = [model3_accuracy, model3_precision, model3_recall, model3_f1, model3_roc_auc]
     # model4_scores= model4_metrics_list
+    
+    # bert模型完成一轮预测需要将近3小时， 因此我们选择直接将metrics复制进去， 如果你感兴趣，可以直接前往 “activity_classifier_transformer.py” 单独运行
     model4_scores = [0.71, 0.76, 0.71, 0.73, 0.71]
     model5_scores = [model5_accuracy, model5_precision, model5_recall, model5_f1, model5_roc_auc]
     
@@ -223,8 +225,13 @@ if __name__ == '__main__':
     model3 =print_randomForestSklearn()
     
     
+    # bert模型完成一轮预测需要将近3小时， 因此我们选择直接将metrics复制进图表
+    # 如果你感兴趣，可以直接前往 “activity_classifier_transformer.py” 单独运行
+    
     # model4, model4_metrics_list = print_transformer()
     
+    
+    # 得到A*优化算法加持的 参数最优化的 神经网络模型, 整个过程将近10分钟，请耐心等待
     model5 = print_torch_optimized()
     
     
