@@ -1,7 +1,5 @@
-# cpt406-group1
-CPT406 CourseWork Activity Classification
+# Physical Activity Classification Task
 
-## 注：你们自己不要动代码
 
 ## 项目环境配置
 * 下载anaconda 并配置环境变量，不会的自己去搜
@@ -36,7 +34,7 @@ pip install seaborn
 * activity_classification_transformer.py 中存放的是基于transformer架构的Bert模型，用于text分类
 * activity_classification_decisionTree.py 中存放的是决策树模型
 * 所有的模型会合并到一个runner.py文件中。
-* 大家只要写第1，2 个模型就行了， 第3,4个看后期进度
+
 
 
 ## 项目进展
@@ -49,7 +47,6 @@ pip install seaborn
 
 
 ## IDE环境搭建
-* 前提：如果你会git的命令，那就直接把仓库拉到本地，因为我经常会更新，这样更方便。如果你不会，拿就直接把项目.zip下载到本地解压。
 * 下载vscode
 * 双击打开任意一个.py文件
 * 打开应用商店， 下载如下拓展
