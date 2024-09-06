@@ -1,5 +1,6 @@
 # Physical Activity Classification Task
-
+## 实验报告
+具体细节可以查看 实验报告.pdf
 
 ## 项目环境配置
 * 下载anaconda 并配置环境变量，不会的自己去搜
