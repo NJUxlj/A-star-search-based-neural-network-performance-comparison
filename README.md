@@ -1,4 +1,47 @@
 # Physical Activity Classification Task
+## 任务内容：
+- 数据集每个样本包含561种身体信号特征
+- 使用5种身体分类模型将样本分类到6个类：{Laying, Standing, Sitting, Walking, Walking_upstairs, Walking_downstairs}
+- 比较并分析5种模型的分类性能：
+ - 普通神经网络
+ - A*超参数搜索算法优化后的神经网络（pytorch）
+ - 输入样本经过特殊处理的Bert模型
+ - GridSearch优化后的，sklearn实现的SVM
+ - sklearn实现的DecisionTree
+ - sklearn实现的RandomForest
+- **其中，我们主要想研究的，就是 `A*超参数搜索算法优化后的神经网络` **
+- 实验设备：NVIDIA Qura P4000
+
+## **A*超参数搜索算法优化后的神经网络（简称，A*优化NN）** 特别说明
+- 我们的最终目标是设计和实现一个A*算法，能够使用元启发搜索从各种不同的【隐藏层数，隐单元数，激活函数种类（sigmoid, relu, tanh）】组合中，找到一个最佳组合，使得应用这个组合下的神经网络的分类性能可以达到并超越SVM在相同任务上的最佳性能。
+- 对于每种超参数 [layer_num, hidden_size, activation_type], 我都在它的左右两个方向进行了邻居搜索，遍历每个没有评估过的组合。
+- 我们根据一个节点总分函数$f(n) = c(n) + h(n)$来选择邻居集合中的某一个邻居， 选中以后，再迭代寻找它周围的所有邻居。
+- 真实代价函数$c(n)$， 和启发式函数$h(n)$的设计，请参考文档后半部分，或报告。
+- A*算法的停止条件：`is_goal()`函数判定NN的性能是否达到SVM的最佳性能，如果达到就停止。
+
+#### A*优化NN的ROC性能 (One-vs-Rest)
+![image](https://github.com/user-attachments/assets/bd646a5e-5696-4bfd-8d0f-1eae108a9194)
+
+
+## 5种模型中的BERT的特殊说明：
+- 我们将原始的561维浮点数特征通过在两两浮点数之间加上[SEP] token, 以及在第一个浮点数前加上[CLS]token， 在最后一个浮点数后面加上[SEP] token， 实现了把561维浮点特征的样本转为了一个单一字符串样本。
+- 也就是说，我们将原始的分类问题转为了一个`文本分类`问题。让bert把每个样本分到6个类。
+
+
+## 数据分布
+![image](https://github.com/user-attachments/assets/ee71ebfa-fa85-42c1-8227-a916625c1aa1)
+
+
+## 项目结构
+* 存放位置
+    * activity_classification_sklearn.py 中存放的是SVM
+    * activity_classification_torch.py 中存放的是Neural Network
+        * 其中包含了A*优化算法，以及相关模块
+    * activity_classification_transformer.py 中存放的是基于transformers包的Bert模型，用于text分类
+    * activity_classification_decisionTree.py 中存放的是决策树模型
+* 所有的模型会合并到一个runner.py文件中。
+
+
 ## 实验报告
 具体细节可以查看 实验报告.pdf
 
@@ -20,20 +63,6 @@ seaborn
 ```
 
 
-## 项目文件组织
-* 总体上看， 包含5个分类模型
-    * 第一个classifier使用神经网络实现的，用到的包是torch.
-    * 第二个classifier是用SVM实现的，用到的包是sklearn.
-    * 第三个是sklearn实现的RandomForest
-    * 第四个是sklearn实现的DecisionTree
-    * 第五个是transformers框架实现的BERT
-* 存放位置
-    * activity_classification_sklearn.py 中存放的是SVM
-    * activity_classification_torch.py 中存放的是Neural Network
-        * 其中包含了A*优化算法，以及相关模块
-    * activity_classification_transformer.py 中存放的是基于transformers包的Bert模型，用于text分类
-    * activity_classification_decisionTree.py 中存放的是决策树模型
-* 所有的模型会合并到一个runner.py文件中。
 
 
 
@@ -107,13 +136,22 @@ pip install -r requirements.txt
 ![image](https://github.com/user-attachments/assets/2d32c8ba-41a8-4d9a-9a80-0301cd93a0b4)
 
 
-### 计算节点的启发式权重
-![image](https://github.com/user-attachments/assets/a12db8fa-09aa-4d64-ab41-a270e737af66)
+### 计算A*中的节点总分
+![image](https://github.com/user-attachments/assets/6986ed0d-a068-4648-a910-876eec5456c3)
 
 
-### 展示每一个超参数组合的分类性能
-![image](https://github.com/user-attachments/assets/3d7c485e-9b74-4684-b611-cee0c850009f)
-![image](https://github.com/user-attachments/assets/5d318f45-8f3e-48ca-be5a-9b4263d6b4ed)
+### 真实代价函数$c(n)$
+![image](https://github.com/user-attachments/assets/6f261202-e21b-4944-a446-16c6a9e12a2d)
+![image](https://github.com/user-attachments/assets/388012a3-da0b-437e-b580-2745345d6f33)
+
+
+### 启发式函数$h(n)$
+![image](https://github.com/user-attachments/assets/1d2a9d19-e83b-407e-bd78-ec2a068931bd)
+
+
+### A*算法结束条件判定
+![image](https://github.com/user-attachments/assets/a0615c46-490c-44f9-9da6-9b32ef7ab13c)
+
 
 
 ## A*超参数搜索结果
