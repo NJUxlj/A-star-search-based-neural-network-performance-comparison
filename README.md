@@ -99,5 +99,26 @@ pip install -r requirements.txt
 ![image](https://github.com/user-attachments/assets/74c95890-8a98-4543-8f9a-bebdddb303f1)
 
 
-## 使用A*搜索算法搜索最优的神经网络超参数组合【hidden_size, 】
+## 使用A*搜索算法搜索最优的神经网络超参数组合【layer_num, hidden_size, activation_type】
+### 定义A*算法节点类
+![image](https://github.com/user-attachments/assets/33dce41d-6aa9-429a-b89c-202ecade40de)
 
+### 搜索邻接节点
+![image](https://github.com/user-attachments/assets/2d32c8ba-41a8-4d9a-9a80-0301cd93a0b4)
+
+
+### 计算节点的启发式权重
+![image](https://github.com/user-attachments/assets/a12db8fa-09aa-4d64-ab41-a270e737af66)
+
+
+### 展示每一个超参数组合的分类性能
+![image](https://github.com/user-attachments/assets/3d7c485e-9b74-4684-b611-cee0c850009f)
+![image](https://github.com/user-attachments/assets/5d318f45-8f3e-48ca-be5a-9b4263d6b4ed)
+
+
+## A*超参数搜索结果
+![image](https://github.com/user-attachments/assets/9998607f-1dc9-44c7-9abf-430971752ea9)
+![image](https://github.com/user-attachments/assets/a7115b97-083c-4cb1-bb64-a431ab6c7e87)
+![image](https://github.com/user-attachments/assets/af2514ac-7625-445f-9dfd-0184c3488de8)
+
+![image](https://github.com/user-attachments/assets/656ef787-687b-4872-b554-da872e76bbc6)
