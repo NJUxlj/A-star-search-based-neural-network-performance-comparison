@@ -1,4 +1,4 @@
-# Physical Activity Classification Task
+# 基于A*超参数搜索算法的神经网络在肢体活动分类任务上的性能比较  
 ## 任务内容：
 - 数据集每个样本包含561种身体信号特征
 - 使用5种身体分类模型将样本分类到6个类：`{Laying, Standing, Sitting, Walking, Walking_upstairs, Walking_downstairs}`
